@@ -7,31 +7,35 @@ class Reactor:
         self.time_start = 0
         self.time_stop = 10
         self.k = k
+        self.c0 = np.array((1, 1, 0, 1))
         pass
 
-    def _m_in(t):
+    def _m_in(self, t):
         return self.m_in
 
-    def _m_out(t):
-        return _m_in(t)
+    def _m_out(self, t):
+        return self._m_in(t)
 
-    def _c_in(t):
+    def _c_in(self, t):
+        pass
 
     def _mass_balance(self, t, m):
-        dmdt = _m_in(t) - _m_out(t)
+        dmdt = self._m_in(t) - self._m_out(t)
         return dmdt
 
     def _concentration_balance(self, t, c):
-        dcdt = _m_in(t)*_c_in(t) - _m_out(t)*_c_out(t) + _c_gen(c)
+        #dcdt = self._m_in(t)*self._c_in(t) - self._m_out(t)*self._c_out(t) + self._c_gen(c)
+        dcdt = self._c_gen(c)
         return dcdt
     
-    def _c_gen(c):
+    def _c_gen(self, c):
+        #TODO: check how to calculate rate from stochiometric matrix
         _dcdt = self.forces*c
         return np.sum(_dcdt, 0)
 
     def ode_solver(self):
-        sol = solve_ivp(fun, [self.time_start,self.time_stop], [c0])
-        return sol.t, sol.c
+        sol = solve_ivp(self._concentration_balance, [self.time_start,self.time_stop], self.c0, max_step = 0.1)
+        return sol.t, sol.y
 
     def reaction(self):
         '''
