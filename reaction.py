@@ -1,7 +1,9 @@
 import numpy as np
 from scipy.integrate import solve_ivp
+import re #Regular expression module for reading reaction strings
 
-class Reactor:
+
+class Reaction:
     def __init__(self, m_in = 1, k = 1):
         self.m_in = m_in #inlet mass flow
         self.time_start = 0
@@ -29,16 +31,15 @@ class Reactor:
         return dcdt
     
     def _c_gen(self, c):
-        #TODO: check how to calculate rate from stochiometric matrix
-        _dcdt = self.forces*c
-        return np.sum(_dcdt, 0)
+        rates = self.rate_constants*(c[0]**2*c[1], c[1]*(c[3]**3))
+        return np.dot(rates, self.stochiometry_matrix)
 
     def ode_solver(self):
         sol = solve_ivp(self._concentration_balance, [self.time_start,self.time_stop], self.c0, max_step = 0.1)
         return sol.t, sol.y
 
-    def reaction(self):
-        '''
+    def reaction(self, string):
+        string = '''
         2 A + B -> 3 C
         B + 3 D -> 4 A
         stochiometry matrix:
@@ -54,5 +55,15 @@ class Reactor:
         ]
         k1 = 1
         k2 = 1
-        self.rate_constants = np.array([[k1], [k2]])
-        self.forces = self.stochiometry_matrix*self.rate_constants
+        self.rate_constants = np.array((1,1))
+
+        #TODO:
+        s='''
+        A +B=C
+        1B+ 4D> C
+        '''
+        for reaction in s.splitlines():
+            print(re.split(r'\W+',reaction))
+    
+        re.findall(r'\w+', s)
+        re.split(r'\W+',s)
