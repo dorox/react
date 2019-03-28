@@ -4,12 +4,13 @@ import re #Regular expression module for reading reaction strings
 
 
 class Reaction:
-    def __init__(self, m_in = 1, k = 1):
+    def __init__(self, m_in = 1):
+        self.stoichiometry = np.array([])
+        self.rate_constants = np.array([])
+        self.species = np.array([])
         self.m_in = m_in #inlet mass flow
         self.time_start = 0
         self.time_stop = 10
-        self.k = k
-        self.c0 = np.array((1, 1, 0, 1))
         pass
 
     def _m_in(self, t):
@@ -35,35 +36,49 @@ class Reaction:
         return np.dot(rates, self.stochiometry_matrix)
 
     def ode_solver(self):
-        sol = solve_ivp(self._concentration_balance, [self.time_start,self.time_stop], self.c0, max_step = 0.1)
+        sol = solve_ivp(
+            self._concentration_balance,
+            [self.time_start,self.time_stop],
+            self.c0,
+            max_step = 0.1
+            )
         return sol.t, sol.y
 
     def reaction(self, string):
-        string = '''
-        2 A + B -> 3 C
-        B + 3 D -> 4 A
-        stochiometry matrix:
-               R1   R2
-        A     -2    4
-        B     -1   -1
-        C      3    0
-        D      0   -3
-        '''
-        self.stochiometry_matrix = [
-            [-2, -1, 3, 0],
-            [4, -1, 0, -3]
-        ]
-        k1 = 1
-        k2 = 1
-        self.rate_constants = np.array((1,1))
-
-        #TODO:
-        s='''
-        A +B=C
-        1B+ 4D> C
-        '''
-        for reaction in s.splitlines():
-            print(re.split(r'\W+',reaction))
-    
-        re.findall(r'\w+', s)
-        re.split(r'\W+',s)
+        string = string.replace(' ', '')
+        species = re.findall(r'[A-z]\w*', string)
+        
+        irreversible = r'=>'
+        reversible = r'<=>'
+        
+        species =  re.findall(r'[A-z]\w*', string)
+        self.species = np.unique(
+            np.append(self.species, species)
+            )
+        
+        if re.search(reversible, string):
+            [left, right] = re.split(reversible, string)
+            self._new_reaction(species, left, right)
+            self._new_reaction(species, right, left)
+        elif re.search(irreversible, string):
+            [left, right] = re.split(irreversible, string)
+            self._new_reaction(species, left, right)
+        else:
+            print('reactions not found')
+        
+    def _new_reaction(self, species, left, right):
+        
+        coeff = [ -int(i) for i in re.findall(r'\b\d+', left)]
+        species = re.findall(r'[A-z]\w*', left)
+        stoichiometry = dict(zip(species, coeff))
+        
+        coeff = [ int(i) for i in re.findall(r'\b\d+', right)]
+        species = re.findall(r'[A-z]\w*', right)
+        stoichiometry.update(dict(zip(species, coeff)))
+        
+        self.stoichiometry = np.append(
+            self.stoichiometry, 
+            [stoichiometry.get(i, 0) for i in self.species]
+            )
+        
+        print(stoichiometry)
