@@ -1,8 +1,9 @@
-import reaction
+import models
 
-r = reaction.Reaction()
+chem = models.Chemistry()
 
-r.reaction('4A+1B2O=>2C+3gd12')
-print(r.species)
-print(r.stoichiometry)
-print(r.rate_constants)
+chem.reaction('A+B=>C', k=2)
+chem.reaction('2A+2B=>2C', k=3)
+print(chem.stoichiometry)
+print(chem.rate_constants)
+
