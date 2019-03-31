@@ -34,13 +34,14 @@ class Chemistry:
         r = np.zeros(len(self.rate_constants))
         i=0
         for reaction in self.stoichiometry:
-            r[i]=self.rate_constants[i]
-            j=0
-            for coeff in reaction:
-                if coeff<0:
-                    r[i]*=c[j]**(abs(coeff))
-                j+=1
-            i+=1
+            if sum(abs(reaction))>0:
+                r[i]=self.rate_constants[i]
+                j=0
+                for coeff in reaction:
+                    if coeff<0:
+                        r[i]*=c[j]**(abs(coeff))
+                    j+=1
+                i+=1
         return r
 
     def _c_gen(self, c):
@@ -51,8 +52,8 @@ class Chemistry:
         sol = solve_ivp(
             self._concentration_balance,
             [self.time_start,self.time_stop],
-            self.c0
-            #max_step = 0.1
+            self.c0,
+            max_step = 0.1
             )
         return sol.t, sol.y
 
