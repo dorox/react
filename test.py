@@ -14,7 +14,7 @@ print(chem.species)
 # chem.stoichiometry[:,0] =np.zeros(4)
 
 chem.time_stop = 100
-chem.c0 = [1,1,1,3,0,0]
+chem.c0 = [100,1,1,300,0,0]
 t, c = chem.ode_solver()
 
 j=0
