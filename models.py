@@ -1,7 +1,9 @@
-import numpy as np
+import re  # Regular expression module for reading reaction strings
+from collections import OrderedDict
+
 import matplotlib.pyplot as p
+import numpy as np
 from scipy.integrate import solve_ivp
-import re #Regular expression module for reading reaction strings
 
 
 class Chemistry:
@@ -9,8 +11,8 @@ class Chemistry:
         self.stoichiometry = np.array([], ndmin = 2)
         self.rate_constants = np.array([])
         self.orders = np.array([], ndmin = 2)
-        self.species = dict()
-        self.c0 = dict()
+        self.species = OrderedDict()
+        self.c0 = OrderedDict()
         self.time_start = 0
         self.time_stop = 100
 
@@ -65,7 +67,7 @@ class Chemistry:
     
     def ode_solver(self):
 
-        c0 = dict.fromkeys(self.species, 0)
+        c0 = OrderedDict.fromkeys(self.species, 0)
         c0.update({i:self.c0[i] for i in self.c0})
         self.c0 = c0
 
@@ -76,7 +78,7 @@ class Chemistry:
             #max_step = 0.1
             )
         
-        self.solution = dict.fromkeys(self.species)
+        self.solution = OrderedDict.fromkeys(self.species)
         i = 0
         for k in self.solution:
             self.solution[k] = sol.y[i]
@@ -105,7 +107,7 @@ class Chemistry:
         else:
             print('reactions not found')
         
-        c0 = dict.fromkeys(self.species, 0)
+        c0 = OrderedDict.fromkeys(self.species, 0)
         c0.update({i:self.c0[i] for i in self.c0})
         self.c0 = c0
 
@@ -114,24 +116,24 @@ class Chemistry:
 
         self.rate_constants = np.append(self.rate_constants, k)
 
-        def coeff(s): 
+        def get_coeff(s): 
             match = re.search(r'\b[\d\.]+', s)
             if match:
                 return float(match.group())
             else:
                 return 1
 
-        def species(s): return re.findall(r'[A-z]\w*', s)[0]
+        def get_species(s): return re.findall(r'[A-z]\w*', s)[0]
 
         #---Creating stoichiometry matrix
-
-        self.species.update({species(i):-coeff(i) for i in re.findall(r'[\.\w]+', reagents)})
+        
+        self.species.update({get_species(i):-get_coeff(i) for i in re.findall(r'[\.\w]+', reagents)})
 
         for i in re.findall(r'[\.\w]+', products):
             try:
-                self.species[species(i)] += coeff(i)
+                self.species[get_species(i)] += get_coeff(i)
             except KeyError:
-                self.species.update({species(i):coeff(i)})
+                self.species.update({get_species(i):get_coeff(i)})
 
         new_s = [self.species.get(i) for i in self.species]
         s = self.stoichiometry
@@ -149,7 +151,7 @@ class Chemistry:
         for i in self.species:
             self.species[i] = 0
         
-        self.species.update({species(i):abs(coeff(i)) for i in re.findall(r'[\.\w]+', reagents)})
+        self.species.update({get_species(i):abs(get_coeff(i)) for i in re.findall(r'[\.\w]+', reagents)})
         new_o = [self.species.get(i) for i in self.species]
         o = self.orders
         if o.size<=1:
