@@ -91,7 +91,13 @@ class Chemistry:
         def species(s): return re.findall(r'[A-z]\w*', s)[0]
 
         self.species.update({species(i):-coeff(i) for i in re.findall(r'[\.\w]+', reagents)})
-        self.species.update({species(i):coeff(i) for i in re.findall(r'[\.\w]+', products)})
+
+        for i in re.findall(r'[\.\w]+', products):
+            try:
+                self.species[species(i)] += coeff(i)
+            except KeyError:
+                self.species.update({species(i):coeff(i)})
+
         new_s = [self.species.get(i) for i in self.species]
         s = self.stoichiometry
 
