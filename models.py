@@ -1,13 +1,15 @@
 import re  # Regular expression module for reading reaction strings
 from collections import OrderedDict
-
+from time import time
 import matplotlib.pyplot as p
 import numpy as np
 from scipy.integrate import solve_ivp
-
+from scipy.optimize import minimize
+from tools import *
 
 class Chemistry:
     def __init__(self):
+        self.data = []
         self.stoichiometry = np.array([], ndmin = 2)
         self.rate_constants = np.array([])
         self.orders = np.array([], ndmin = 2)
@@ -16,22 +18,52 @@ class Chemistry:
         self.time_start = 0
         self.time_stop = 100
 
+    def _obj_fun(self, rate_constants):
+        self.rate_constants = rate_constants
+        self.run(plot = False)
+        obj = 0
+        for key in self.data:
+            if key != 'Time (s)':
+                obj += np.sum((self.solution[key] - self.data[key])**2)
+        return obj
+
+    def fit(self):
+        res = minimize(
+            self._obj_fun, 
+            self.rate_constants
+            )
+        print(res)
+        self.rate_constants = res
+        self.run()
+        return res
+
+    def import_data(self, file_name):
+        data = get_data(file_name)
+        self.data = data
+        for k in data:
+            if k != 'Time (s)':
+                p.plot(data['Time (s)'],data[k], 'o', label = k)
+        p.legend()
+        p.show()
+
     def _concentration_balance(self, t, c):
         dcdt = self._c_gen(c)
         return dcdt
 
     def rate(self, c):
-        #TODO: rewrite as array ** array
         r = np.zeros(len(self.rate_constants))
         i=0
         for reaction in self.orders:
-            if sum(abs(reaction))>0:
-                r[i]=self.rate_constants[i]
-                j=0
-                for coeff in reaction:
-                    r[i]*=c[j]**(coeff)
-                    j+=1
-                i+=1
+            r[i]=self.rate_constants[i]
+
+            # This is slower than a loop:
+            #r[i]=np.prod(np.power(c,reaction))
+
+            j=0
+            for coeff in reaction:
+                r[i]*=c[j]**(coeff)
+                j+=1
+            i+=1
         return r
 
     def _c_gen(self, c):
@@ -43,11 +75,27 @@ class Chemistry:
         for species, conc in kwargs.items():
             self.c0.update({species:conc})
 
-    def run(self):
-        self.ode_solver()
-        self.plot(all = True)
+    def run(self, plot = True):
+        #If experimental data is imported:
+        if self.data:
+            time_stop = self.data['Time (s)'][-1]
+            t_eval = self.data['Time (s)']
+            
+        #If no exp data: runnig default solver:
+        else:
+            t_eval = None
+            time_stop = self.time_stop
+        
+        t0 = time()
+        self.ode_solver(t_eval=t_eval, time_stop=time_stop)
+        t1 = time()
+
+        if plot:
+            print(f'run time: {t1-t0:.3f}s')
+            self.plot(all = True)
 
     def plot(self, *args, all = False):
+        #TODO check if solution exists
         if all:
             to_plot = self.species
         else:
@@ -65,17 +113,19 @@ class Chemistry:
         ax.legend()
         p.show()
     
-    def ode_solver(self):
+    def ode_solver(self, t_eval = None, time_stop = None):
 
         c0 = OrderedDict.fromkeys(self.species, 0)
         c0.update({i:self.c0[i] for i in self.c0})
         self.c0 = c0
+        if time_stop == None:
+            time_stop = self.time_stop
 
         sol = solve_ivp(
             self._concentration_balance,
-            [self.time_start,self.time_stop],
-            list(self.c0.values())
-            #max_step = 0.1
+            [self.time_start, time_stop],
+            list(self.c0.values()),
+            t_eval = t_eval
             )
         
         self.solution = OrderedDict.fromkeys(self.species)

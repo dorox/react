@@ -1,5 +1,6 @@
-import models
 import numpy as np
+import models
+from tools import *
 
 #Brusselator test
 chem = models.Chemistry()
@@ -20,7 +21,6 @@ chem.plot('X', 'Y')
 
 #Reversible reaction test
 chem2 = models.Chemistry()
-
 chem2.reaction('A=>B')
 chem2.reaction('A+X<=>C+D')
 chem2.reaction('B+Y<=>C+E')
@@ -28,3 +28,16 @@ chem2.reaction('E+D<=>F')
 chem2.initial_concentrations(A=1, X=1, B=1, Y=1)
 chem2.time_stop = 50
 chem2.run()
+
+#Andrew test:
+chem3 = models.Chemistry()
+chem3.reaction('A+X=>B+Y')
+chem3.reaction('B+A=>C+Y')
+chem3.initial_concentrations(A=90, X=200)
+chem3.time_stop = 20
+chem3.run()
+chem3.import_data('data/Expt1.csv')
+chem3.rate_constants = [1e-4,1e-4]
+chem3.run()
+chem3.fit()
+i=0
