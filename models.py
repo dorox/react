@@ -5,20 +5,81 @@ import matplotlib.pyplot as p
 import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import minimize
-from tools import *
+from tools import get_data
 
-class Chemistry:
+class Domain:
+    '''
+    Basic functions of a modelling domain
+    '''
     def __init__(self):
-        self.data = OrderedDict()
-        self.stoichiometry = np.array([], ndmin = 2)
-        self.rate_constants = np.array([])
-        self.orders = np.array([], ndmin = 2)
-        self.species = OrderedDict()
-        self.c0 = OrderedDict()
-        self.time_start = 0
-        self.time_stop = 100
+        self.data = OrderedDict() #keeps imported data
+        self.solution = OrderedDict() #keeps simulation results
+        self.variables = OrderedDict() #keeps variables(species) names
+        self.initial_values = OrderedDict()
+        self.time_start = 0 #Start of simulation
+        self.time_stop = 100   #End of simulation
+        self.time_eval = None   #Time steps for simulation
 
-    def _obj_fun(self, rate_constants):
+    def _ode(self, t, y):
+        '''
+        Empty ode function, 
+        y has to be in the order of self.variables
+        '''
+        print('Empty ode function, y has to be in the order of self.variables')
+        pass
+
+    def import_data(self, file_name):
+        '''
+        Iporting .csv file with the format:
+
+        time| variable1     | variable2     | ....
+        ----------------------------------------
+        0   | init.cond.1   | init.cond2.   |   ...
+        ... |   ....        |   .....       |   ...
+
+        '''
+        data = get_data(file_name)
+        self.data = data
+        if self.data:
+            self.time_start = self.data['t'][0]
+            self.time_stop = self.data['t'][-1]
+            self.time_eval = self.data['t']
+
+        for k in data:
+            if k != 't':
+                p.plot(data['t'], data[k], 'o', label = k)
+        p.legend()
+        p.show()
+
+    def run(self, plot = True):
+        ''' 
+        Running simulation of a modelling domain
+        '''
+        #TODO: add variable time-stepping - increasing time step with time
+        t0 = time()
+        sol = solve_ivp(
+            self._ode,
+            [self.time_start, self.time_stop],
+            list(self.initial_values.values()),
+            t_eval = self.time_eval,
+            )
+        t1 = time()
+
+        self.solution = OrderedDict.fromkeys(self.variables)
+        
+        i = 0
+        for k in self.solution:
+            self.solution[k] = sol.y[i]
+            i+=1
+        self.solution['t'] = sol.t
+
+        if plot:
+            print(f'run time: {t1-t0:.3f}s')
+            self.plot(all = True)
+        
+        return sol
+
+    def _obj_fun(self, parameters):
         self.rate_constants = rate_constants
         self.run(plot = False)
         obj = 0
@@ -28,6 +89,9 @@ class Chemistry:
         return obj
 
     def fit(self):
+        '''
+        Fitting the model into imported data
+        '''
         res = minimize(
             self._obj_fun, 
             self.rate_constants
@@ -36,21 +100,54 @@ class Chemistry:
         self.rate_constants = res
         self.run()
         return res
+    
+    def plot(self, *args, all = False):
+        '''
+        Plotting selected variables as a function of time
+        '''
+        #TODO check if solution exists
+        if all:
+            to_plot = self.variables
+        else:
+            to_plot = args
 
-    def import_data(self, file_name):
-        data = get_data(file_name)
-        self.data = data
-        for k in data:
-            if k != 'Time (s)':
-                p.plot(data['Time (s)'],data[k], 'o', label = k)
-        p.legend()
+        fig = p.figure()
+        ax = fig.add_subplot(111)
+        ax.set_ylabel('concentration')
+        ax.set_xlabel('time')
+        for variable in to_plot:
+            ax.plot(
+                self.solution['t'], 
+                self.solution[variable],
+                label = variable,
+                )
+            try:
+                ax.plot(
+                    self.data['t'],
+                    self.data[variable],
+                    'o',
+                    label = 'exp.' + variable,
+                )
+            except KeyError:
+                pass
+        ax.legend()
         p.show()
 
-    def _concentration_balance(self, t, c):
-        dcdt = self._c_gen(c)
-        return dcdt
+class Chemistry(Domain):
+    def __init__(self):
+        super().__init__()
+        self.stoichiometry = np.array([], ndmin = 2)
+        self.rate_constants = np.array([])
+        self.orders = np.array([], ndmin = 2)
+        self.species = OrderedDict()
+        self.c0 = OrderedDict()
+        self.variables = self.species #will there be non-species variables?
+        self.initial_values = self.c0 #temporary?
 
-    def rate(self, c):
+    def _rate(self, c):
+        '''
+        Returns array of species generation rates
+        '''
         r = np.zeros(len(self.rate_constants))
         i=0
         for reaction in self.orders:
@@ -66,79 +163,45 @@ class Chemistry:
             i+=1
         return r
 
-    def _c_gen(self, c):
-        rates = self.rate(c)
-        return np.dot(rates, self.stoichiometry)
+    def _ode(self, t, c):
+        '''
+        ODE to be solved:
+        only species generation term - reaction rate
+        '''
+        dcdt = np.dot(self._rate(c), self.stoichiometry)
+        return dcdt
 
     def initial_concentrations(self, **kwargs):
+        '''
+        Set the initial concentrations of species at t=0s
+        '''
         #TODO error when kwards contains non-existing species
         for species, conc in kwargs.items():
             self.c0.update({species:conc})
 
-    def run(self, plot = True):
-        #If experimental data is imported:
-        if self.data:
-            time_stop = self.data['Time (s)'][-1]
-            t_eval = self.data['Time (s)']
-            
-        #If no exp data: runnig default solver:
-        else:
-            t_eval = None
-            time_stop = self.time_stop
-        
-        t0 = time()
-        self.ode_solver(time_eval=t_eval, time_stop=time_stop)
-        t1 = time()
-
-        if plot:
-            print(f'run time: {t1-t0:.3f}s')
-            self.plot(all = True)
-
-    def plot(self, *args, all = False):
-        #TODO check if solution exists
-        if all:
-            to_plot = self.species
-        else:
-            to_plot = args
-        fig = p.figure()
-        ax = fig.add_subplot(111)
-        ax.set_ylabel('concentration')
-        ax.set_xlabel('time')
-        for species in to_plot:
-            ax.plot(
-                self.solution['t'], 
-                self.solution[species],
-                label = species,
-                )
-        ax.legend()
-        p.show()
-    
-    def ode_solver(self, time_eval = None, time_stop = None):
-
-        c0 = OrderedDict.fromkeys(self.species, 0)
-        c0.update({i:self.c0[i] for i in self.c0})
-        self.c0 = c0
-        if time_stop == None:
-            time_stop = self.time_stop
-
-        sol = solve_ivp(
-            self._concentration_balance,
-            [self.time_start, time_stop],
-            list(self.c0.values()),
-            t_eval = time_eval
-            )
-        
-        self.solution = OrderedDict.fromkeys(self.species)
-        i = 0
-        for k in self.solution:
-            self.solution[k] = sol.y[i]
-            i+=1
-        self.solution['t'] = sol.t
-
-        return sol.t, sol.y
-
     def reaction(self, string, k=1, k1=1, k2=1):
-
+        '''
+            Adding new chemical reaction to the system of reactions 
+            in the current modelling domain.
+            
+            Parameters
+            ----------
+            string : str
+                The chemical reaction in string form
+            k : float
+                rate constant in case of irreversible reaction
+            k1 : float
+                forward rate constant for reversible reaction
+            k2 : float
+                backward rate constant for reversible reaction
+            
+            Examples
+            --------
+            chem.reaction('A+B=>C')
+            chem.reaction('A+B<=>C')
+            chem.reaction('A+B=>C', k = 1e-6)
+            chem.reaction('A+B<=>C', k1 = 3.5e-12, k2 = 4.5e-11)
+        '''
         for i in self.species:
             self.species[i] = 0
 
@@ -157,9 +220,11 @@ class Chemistry:
         else:
             print('reactions not found')
         
-        c0 = OrderedDict.fromkeys(self.species, 0)
-        c0.update({i:self.c0[i] for i in self.c0})
-        self.c0 = c0
+        for s in self.species:
+            try:
+                self.c0.update({s:self.c0[s]})
+            except KeyError:
+                self.c0.update({s:0})
 
     def _new_reaction(self, reagents, products, k):
         #TODO: rewrite from self.species to new dictionaries
