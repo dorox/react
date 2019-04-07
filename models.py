@@ -9,7 +9,7 @@ from tools import *
 
 class Chemistry:
     def __init__(self):
-        self.data = []
+        self.data = OrderedDict()
         self.stoichiometry = np.array([], ndmin = 2)
         self.rate_constants = np.array([])
         self.orders = np.array([], ndmin = 2)
@@ -87,7 +87,7 @@ class Chemistry:
             time_stop = self.time_stop
         
         t0 = time()
-        self.ode_solver(t_eval=t_eval, time_stop=time_stop)
+        self.ode_solver(time_eval=t_eval, time_stop=time_stop)
         t1 = time()
 
         if plot:
@@ -113,7 +113,7 @@ class Chemistry:
         ax.legend()
         p.show()
     
-    def ode_solver(self, t_eval = None, time_stop = None):
+    def ode_solver(self, time_eval = None, time_stop = None):
 
         c0 = OrderedDict.fromkeys(self.species, 0)
         c0.update({i:self.c0[i] for i in self.c0})
@@ -125,7 +125,7 @@ class Chemistry:
             self._concentration_balance,
             [self.time_start, time_stop],
             list(self.c0.values()),
-            t_eval = t_eval
+            t_eval = time_eval
             )
         
         self.solution = OrderedDict.fromkeys(self.species)
