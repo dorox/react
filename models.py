@@ -62,6 +62,7 @@ class Domain:
             [self.time_start, self.time_stop],
             list(self.initial_values.values()),
             t_eval = self.time_eval,
+            #method = 'BDF',
             )
         t1 = time()
 
@@ -80,11 +81,11 @@ class Domain:
         return sol
 
     def _obj_fun(self, parameters):
-        self.rate_constants = rate_constants
+        self.rate_constants = parameters
         self.run(plot = False)
         obj = 0
         for key in self.data:
-            if key != 'Time (s)':
+            if key != 't':
                 obj += np.sum((self.solution[key] - self.data[key])**2)
         return obj
 
@@ -94,10 +95,12 @@ class Domain:
         '''
         res = minimize(
             self._obj_fun, 
-            self.rate_constants
+            self.rate_constants,
+            #bounds = tuple((0,None) for i in self.rate_constants),
+            method = 'Nelder-Mead',
             )
         print(res)
-        self.rate_constants = res
+        #self.rate_constants = res
         self.run()
         return res
     
@@ -143,6 +146,7 @@ class Chemistry(Domain):
         self.c0 = OrderedDict()
         self.variables = self.species #will there be non-species variables?
         self.initial_values = self.c0 #temporary?
+        self.parameters = self.rate_constants
 
     def _rate(self, c):
         '''
