@@ -38,12 +38,16 @@ class Domain:
         ... |   ....        |   .....       |   ...
 
         '''
+        #TODO: set initial conditions as in imported data
         data = get_data(file_name)
         self.data = data
         if self.data:
             self.time_start = self.data['t'][0]
             self.time_stop = self.data['t'][-1]
             self.time_eval = self.data['t']
+            for k in data:
+                if k!='t':
+                    self.initial_values[k] = data[k][0]
 
         for k in data:
             if k != 't':
@@ -56,6 +60,7 @@ class Domain:
         Running simulation of a modelling domain
         '''
         #TODO: add variable time-stepping - increasing time step with time
+        #TODO: add sliders to get initial estimates for k values
         t0 = time()
         sol = solve_ivp(
             self._ode,
@@ -81,6 +86,7 @@ class Domain:
         return sol
 
     def _obj_fun(self, parameters):
+        #TODO: sensitivity matrix output
         self.rate_constants = parameters
         self.run(plot = False)
         obj = 0
@@ -93,6 +99,8 @@ class Domain:
         '''
         Fitting the model into imported data
         '''
+        #TODO: Change to Gauss-Newton method with sensitivity estimation 
+        #TODO: add checkboxes to choose components to optimise for
         res = minimize(
             self._obj_fun, 
             self.rate_constants,
@@ -108,7 +116,8 @@ class Domain:
         '''
         Plotting selected variables as a function of time
         '''
-        #TODO check if solution exists
+        #TODO check if solution exists before plotting
+        #      add checkboxes for components to plot
         if all:
             to_plot = self.variables
         else:
@@ -179,7 +188,7 @@ class Chemistry(Domain):
         '''
         Set the initial concentrations of species at t=0s
         '''
-        #TODO error when kwards contains non-existing species
+        #TODO error when kwargs contains non-existing species
         for species, conc in kwargs.items():
             self.c0.update({species:conc})
 

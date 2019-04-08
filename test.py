@@ -33,11 +33,10 @@ chem2.run()
 chem3 = models.Chemistry()
 chem3.reaction('A+X=>B+Y')
 chem3.reaction('B+A=>C+Y')
-chem3.initial_concentrations(A=90, X=200)
-chem3.time_stop = 20
+chem3.initial_concentrations(X=200)
+# chem3.time_stop = 20
 chem3.run()
 chem3.import_data('data/Expt1.csv')
-chem3.rate_constants = [1e-7,1e-11]
+chem3.rate_constants = [1e-7,1e-7]
 chem3.run()
 chem3.fit()
-i=0
