@@ -67,6 +67,7 @@ class Domain:
             [self.time_start, self.time_stop],
             list(self.initial_values.values()),
             t_eval = self.time_eval,
+            max_step = 0.1,
             #method = 'BDF',
             )
         t1 = time()
@@ -292,3 +293,24 @@ class Chemistry(Domain):
         
         for i in self.species:
             self.species[i] = 0
+
+class CSTR(Domain):
+    def __init__(self, q, V, c_in):
+        super().__init__()
+        self.q = q
+        self.V = V
+        self.c_in = c_in
+        self.initial_values = {'c_in':c_in}
+        self.variables = {'c_in':0}
+
+    @c_in.setter
+    def c_in(self, c_in):
+
+    def _ode(self, t, y):
+        if callable(self.c_in):
+            dydt = self.q/self.V*(self.c_in(t)-y)
+        else:
+            dydt = self.q/self.V*(self.c_in-y)
+        return dydt
+
+    
