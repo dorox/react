@@ -7,6 +7,46 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy.optimize import minimize
 
+def rect(t0=10, t1=20, y0=0, y1=1):
+    '''
+    Rectangular function
+    '''
+    def _rect(t):
+        if t<t0 or t>t1:
+            return y0
+        else:
+            return y1
+    return np.vectorize(_rect)
+
+def ramp(t1=10, y0=0, y1=1):
+    '''
+    Ramp function
+    '''
+    def _ramp(t):
+        if t<t1:
+            return y0+t*y1/t1
+        else:
+            return y1
+    return np.vectorize(_ramp)
+
+def step(t1=10, y0=0, y1=1):
+    '''
+    Step function
+    '''
+    def _step(t):
+        if t<t1:
+            return y0
+        else:
+            return y1
+    return np.vectorize(_step)
+
+def gaussian(t1=20, y1=1, sig=1):
+    '''
+    Gaussian pulse
+    '''
+    def _gaussian(t):
+        return y1*np.exp(-0.5*((t-t1)/sig)**2)
+    return np.vectorize(_gaussian)
 
 def get_data(file_name):
     '''

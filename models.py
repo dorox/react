@@ -5,7 +5,7 @@ import matplotlib.pyplot as p
 import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import minimize
-from tools import get_data
+from tools import *
 
 class Domain:
     '''
@@ -14,8 +14,8 @@ class Domain:
     def __init__(self):
         self.data = OrderedDict() #keeps imported data
         self.solution = OrderedDict() #keeps simulation results
-        self.variables = OrderedDict() #keeps variables(species) names
-        self.initial_values = OrderedDict()
+        self.variables = OrderedDict() #keeps variables(species) names and inlet functions
+        self.initial_values = OrderedDict() # Initial conditions as const or f(t)
         self.time_start = 0 #Start of simulation
         self.time_stop = 100   #End of simulation
         self.time_eval = None   #Time steps for simulation
@@ -61,11 +61,22 @@ class Domain:
         '''
         #TODO: add variable time-stepping - increasing time step with time
         #TODO: add sliders to get initial estimates for k values
+
+        iv = self.initial_values
+        initial_values = np.zeros(len(self.initial_values))
+        i = 0
+        for k in iv:
+            if callable(iv[k]):
+                initial_values[i] = iv[k](self.time_start)
+            else:
+                initial_values[i] = iv[k]
+            i+=1
+
         t0 = time()
         sol = solve_ivp(
             self._ode,
             [self.time_start, self.time_stop],
-            list(self.initial_values.values()),
+            initial_values,
             t_eval = self.time_eval,
             max_step = 0.1,
             #method = 'BDF',
@@ -133,6 +144,12 @@ class Domain:
                 self.solution['t'], 
                 self.solution[variable],
                 label = variable,
+                )
+            if callable(self.initial_values[variable]):
+                ax.plot(
+                    self.solution['t'], 
+                    self.initial_values[variable](self.solution['t']),
+                    label = 'inlet '+variable,
                 )
             try:
                 ax.plot(
@@ -295,22 +312,48 @@ class Chemistry(Domain):
             self.species[i] = 0
 
 class CSTR(Domain):
-    def __init__(self, q, V, c_in):
+
+    def __init__(self, q=1, V=1):
         super().__init__()
         self.q = q
         self.V = V
-        self.c_in = c_in
-        self.initial_values = {'c_in':c_in}
-        self.variables = {'c_in':0}
-
-    @c_in.setter
-    def c_in(self, c_in):
-
-    def _ode(self, t, y):
-        if callable(self.c_in):
-            dydt = self.q/self.V*(self.c_in(t)-y)
-        else:
-            dydt = self.q/self.V*(self.c_in-y)
-        return dydt
-
+        self._chemistry = OrderedDict()
     
+    def _get_c_in(self, t):
+        #used to get inlet variables values
+        iv = self.initial_values
+        c_in = np.zeros(len(iv))
+        i=0
+        for k in iv:
+            if callable(iv[k]):
+                c_in[i] = iv[k](t)
+            else:
+                c_in[i] = iv[k]
+            i+=1
+        return c_in
+
+    def _ode(self, t, c):
+        dmdt = self.q/self.V*(self._get_c_in(t)-c)
+        if len(self._chemistry)>0:
+            for k in self._chemistry:
+                dmdt += self._chemistry[k]._ode(t,c)
+        return dmdt
+    
+    def inlet(self, **kwargs):
+        for k, v in kwargs.items():
+            self.initial_values.update({k:v})
+            self.variables.update({k:0})
+
+    def add(self, domain):
+        '''
+        Adds new domain into the reactor
+        '''
+        if type(domain) == Chemistry:
+            self._chemistry.update({len(self._chemistry):domain})
+            for k in domain.species:
+                try:
+                    self.variables[k]
+                except KeyError:
+                    self.initial_values.update({k:0})
+                    self.variables.update({k:0})
+        pass
