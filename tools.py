@@ -48,6 +48,18 @@ def gaussian(t1=20, y1=1, sig=1):
         return y1*np.exp(-0.5*((t-t1)/sig)**2)
     return np.vectorize(_gaussian)
 
+def exponential(t1=10, y_tot=1, c=1):
+    '''
+    Exponential injection
+    '''
+    y = y_tot*c/np.exp(c*t1)
+    def _exp(t):
+        if t<t1:
+            return y*np.exp(c*t)
+        else:
+            return 0
+    return np.vectorize(_exp)
+    
 def get_data(file_name):
     '''
     Imports data from a csv file
