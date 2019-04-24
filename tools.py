@@ -44,9 +44,9 @@ def gaussian(t1=20, y_tot=1, sig=1):
     '''
     Gaussian pulse
     '''
-    y = y_tot /((np.pi)**0.5*sig)
+    y = y_tot /((2*np.pi)**0.5*sig)
     def _gaussian(t):
-        return y*np.exp(-((t-t1)/sig)**2)
+        return y*np.exp(-0.5*((t-t1)/sig)**2)
     return np.vectorize(_gaussian)
 
 def exponential(t1=10, y_tot=1, c=1):
