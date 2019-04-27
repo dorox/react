@@ -1,5 +1,5 @@
 # Reaction Engineering and Catalytic Technology (REaCT)
-Modelling and experimental data integration for selected chemical problems.
+Modelling and experimental data integration for selected chemical and biochemical problems.
 
 ## Modelling and experimental data:
 ![model](img/Before_optimisation.png)
