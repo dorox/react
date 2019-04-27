@@ -65,28 +65,23 @@ class Domain:
         
         self.solution = OrderedDict.fromkeys(self.variables, [])
         self.solution['t'] = []
-
-        iv = self.initial_values
-        initial_values = np.zeros(len(self.initial_values))
-        def get_initial_val(t, sol):
-            for i, k in enumerate(iv):
-                if callable(iv[k]):
-                    initial_values[i] = iv[k](t)
-                elif sol:
-                    initial_values[i] = self.solution[k][-1]
-                else:
-                    initial_values[i] = iv[k]
-            return initial_values
-
         t = self.time_start
+        iv = self.initial_values
+
+        initial_values = np.zeros(len(self.initial_values))
+        for i, k in enumerate(iv):
+            if callable(iv[k]):
+                initial_values[i] = iv[k](t)
+            else:
+                initial_values[i] = iv[k]
+    
         sol = None
         t0 = time()
         while True:
-
             sol = solve_ivp(
                 self._ode,
                 [t, self.time_stop],
-                get_initial_val(t, sol),
+                initial_values,
                 t_eval = self.time_eval,
                 #max_step = 0.1,
                 method = 'BDF',
@@ -96,18 +91,20 @@ class Domain:
             for i,k in enumerate(self.solution):
                 if not k=='t':
                     self.solution[k] = np.append(self.solution[k], sol.y[i])
+                    initial_values[i] = sol.y[i][-1]
             self.solution['t'] = np.append(self.solution['t'], sol.t)
-            t = sol.t[-1]+1e-3
-            if sol.status == 0:
-                break
-
+            
+            #If aborted by an event: continue
+            if sol.status == 1:
+                for i, e in enumerate(sol.t_events):
+                    if e: 
+                        self.events.pop(i)
+                        t = e[0]
+            #If aborted by t_stop: end
+            elif sol.status == 0:
+                break          
+           
         t1 = time()
-
-        # i = 0
-        # for k in self.solution:
-        #     self.solution[k] = sol.y[i]
-        #     i+=1
-        # self.solution['t'] = sol.t
 
         if plot:
             print(f'run time: {t1-t0:.3f}s')
@@ -168,6 +165,7 @@ class Domain:
                     self.solution['t'], 
                     [self.initial_values[variable](t) for t in self.solution['t']],
                     label = 'inlet '+variable,
+                    drawstyle = 'steps-post'
                 )
             try:
                 ax.plot(

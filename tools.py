@@ -19,10 +19,8 @@ def rect(t0=10, t1=20, y0=0, y1=1):
     
     def _event1(t,y): return t-t0
     _event1.terminal = True
-    _event1.direction = 1
     def _event2(t,y): return t-t1
     _event2.terminal = True
-    _event2.direction = 1
     return _rect, [_event1, _event2]
 
 def triangle(t0=10, t1=15, t2=20, y0=0, y1=1):
@@ -38,7 +36,15 @@ def triangle(t0=10, t1=15, t2=20, y0=0, y1=1):
             return y0+y1-y1*(t-t1)/dt2
         else:
             return y0
-    return _triangle
+    
+    def _event1(t,y): return t-t0
+    _event1.terminal = True
+    def _event2(t,y): return t-t1
+    _event2.terminal = True
+    def _event3(t,y): return t-t2
+    _event3.terminal = True
+
+    return _triangle, [_event1, _event2, _event3]
 
 def ramp(t0=10, t1=20, y0=0, y1=1):
     '''
@@ -52,7 +58,12 @@ def ramp(t0=10, t1=20, y0=0, y1=1):
             return y1
         else:
             return y0
-    return _ramp
+
+    def _event1(t,y): return t-t0
+    _event1.terminal = True
+    def _event2(t,y): return t-t1
+    _event2.terminal = True
+    return _ramp, [_event1, _event2]
 
 def step(t1=10, y0=0, y1=1):
     '''
@@ -63,7 +74,9 @@ def step(t1=10, y0=0, y1=1):
             return y0
         else:
             return y1
-    return _step
+    def _event1(t,y): return t-t1
+    _event1.terminal = True
+    return _step, [_event1]
 
 def gaussian(t1=20, y_tot=1, sig=1):
     '''
@@ -84,6 +97,8 @@ def exponential(t1=10, y_tot=1, c=1):
             return y*np.exp(c*t)
         else:
             return 0
+    def _event1(t,y): return t-t1
+    _event1.terminal = True
     return _exp
     
 def get_data(file_name):
