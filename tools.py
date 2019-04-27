@@ -16,18 +16,43 @@ def rect(t0=10, t1=20, y0=0, y1=1):
             return y0
         else:
             return y1
-    return np.vectorize(_rect)
+    
+    def _event1(t,y): return t-t0
+    _event1.terminal = True
+    _event1.direction = 1
+    def _event2(t,y): return t-t1
+    _event2.terminal = True
+    _event2.direction = 1
+    return _rect, [_event1, _event2]
 
-def ramp(t1=10, y0=0, y1=1):
+def triangle(t0=10, t1=15, t2=20, y0=0, y1=1):
+    '''
+    Triangle function
+    '''
+    dt1 = t1-t0
+    dt2 = t2-t1
+    def _triangle(t):
+        if t0<t<=t1:
+            return y0+y1*(t-t0)/dt1
+        elif t1<t<=t2:
+            return y0+y1-y1*(t-t1)/dt2
+        else:
+            return y0
+    return _triangle
+
+def ramp(t0=10, t1=20, y0=0, y1=1):
     '''
     Ramp function
     '''
+    dt = t1-t0
     def _ramp(t):
-        if t<t1:
-            return y0+t*y1/t1
-        else:
+        if t0<t<t1:
+            return y0+y1*(t-t0)/dt
+        if t>=t1:
             return y1
-    return np.vectorize(_ramp)
+        else:
+            return y0
+    return _ramp
 
 def step(t1=10, y0=0, y1=1):
     '''
@@ -38,7 +63,7 @@ def step(t1=10, y0=0, y1=1):
             return y0
         else:
             return y1
-    return np.vectorize(_step)
+    return _step
 
 def gaussian(t1=20, y_tot=1, sig=1):
     '''
@@ -47,7 +72,7 @@ def gaussian(t1=20, y_tot=1, sig=1):
     y = y_tot /((2*np.pi)**0.5*sig)
     def _gaussian(t):
         return y*np.exp(-0.5*((t-t1)/sig)**2)
-    return np.vectorize(_gaussian)
+    return _gaussian
 
 def exponential(t1=10, y_tot=1, c=1):
     '''
@@ -59,7 +84,7 @@ def exponential(t1=10, y_tot=1, c=1):
             return y*np.exp(c*t)
         else:
             return 0
-    return np.vectorize(_exp)
+    return _exp
     
 def get_data(file_name):
     '''

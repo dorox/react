@@ -6,6 +6,10 @@ r = models.CSTR(1,10)
 r.inlet(A=1)
 r.run()
 
+r2 = models.CSTR(1,10)
+r2.inlet(A=tools.rect())
+r2.run()
+
 c = models.Chemistry()
 c.reaction('A=>B')
 c.initial_concentrations(A=1)

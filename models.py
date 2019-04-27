@@ -3,7 +3,7 @@ from collections import OrderedDict
 from time import time
 import matplotlib.pyplot as p
 import numpy as np
-from scipy.integrate import solve_ivp
+from scipy.integrate import solve_ivp, OdeSolution
 from scipy.optimize import minimize
 from tools import *
 
@@ -19,6 +19,7 @@ class Domain:
         self.time_start = 0 #Start of simulation
         self.time_stop = 100   #End of simulation
         self.time_eval = None   #Time steps for simulation
+        self.events = None
 
     def _ode(self, t, y):
         '''
@@ -61,35 +62,52 @@ class Domain:
         '''
         #TODO: add variable time-stepping - increasing time step with time
         #TODO: add sliders to get initial estimates for k values
+        
+        self.solution = OrderedDict.fromkeys(self.variables, [])
+        self.solution['t'] = []
 
         iv = self.initial_values
         initial_values = np.zeros(len(self.initial_values))
-        i = 0
-        for k in iv:
-            if callable(iv[k]):
-                initial_values[i] = iv[k](self.time_start)
-            else:
-                initial_values[i] = iv[k]
-            i+=1
+        def get_initial_val(t, sol):
+            for i, k in enumerate(iv):
+                if callable(iv[k]):
+                    initial_values[i] = iv[k](t)
+                elif sol:
+                    initial_values[i] = self.solution[k][-1]
+                else:
+                    initial_values[i] = iv[k]
+            return initial_values
 
+        t = self.time_start
+        sol = None
         t0 = time()
-        sol = solve_ivp(
-            self._ode,
-            [self.time_start, self.time_stop],
-            initial_values,
-            t_eval = self.time_eval,
-            max_step = 0.1,
-            #method = 'BDF',
-            )
+        while True:
+
+            sol = solve_ivp(
+                self._ode,
+                [t, self.time_stop],
+                get_initial_val(t, sol),
+                t_eval = self.time_eval,
+                #max_step = 0.1,
+                method = 'BDF',
+                events = self.events
+                )
+
+            for i,k in enumerate(self.solution):
+                if not k=='t':
+                    self.solution[k] = np.append(self.solution[k], sol.y[i])
+            self.solution['t'] = np.append(self.solution['t'], sol.t)
+            t = sol.t[-1]+1e-3
+            if sol.status == 0:
+                break
+
         t1 = time()
 
-        self.solution = OrderedDict.fromkeys(self.variables)
-        
-        i = 0
-        for k in self.solution:
-            self.solution[k] = sol.y[i]
-            i+=1
-        self.solution['t'] = sol.t
+        # i = 0
+        # for k in self.solution:
+        #     self.solution[k] = sol.y[i]
+        #     i+=1
+        # self.solution['t'] = sol.t
 
         if plot:
             print(f'run time: {t1-t0:.3f}s')
@@ -148,7 +166,7 @@ class Domain:
             if callable(self.initial_values[variable]):
                 ax.plot(
                     self.solution['t'], 
-                    self.initial_values[variable](self.solution['t']),
+                    [self.initial_values[variable](t) for t in self.solution['t']],
                     label = 'inlet '+variable,
                 )
             try:
@@ -341,7 +359,11 @@ class CSTR(Domain):
     
     def inlet(self, **kwargs):
         for k, v in kwargs.items():
-            self.initial_values.update({k:v})
+            if type(v)==tuple:
+                self.initial_values.update({k:v[0]})
+                self.events = v[1]
+            else:
+                self.initial_values.update({k:v})
             self.variables.update({k:0})
 
     def add(self, domain):
