@@ -11,7 +11,7 @@ r.run()
 print('rect')
 print('------------')
 r2 = models.CSTR(1,10)
-r2.inlet(A=tools.rect())
+r2.inlet(A=tools.rect(t0=10, t1=10.1))
 s = r2.run()
 
 print('tri')
