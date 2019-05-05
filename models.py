@@ -5,6 +5,7 @@ import matplotlib.pyplot as p
 import numpy as np
 from scipy.integrate import solve_ivp, OdeSolution
 from scipy.optimize import minimize
+from . import tools
 
 class Domain:
     '''
@@ -38,8 +39,7 @@ class Domain:
         ... |   ....        |   .....       |   ...
 
         '''
-        #TODO: set initial conditions as in imported data
-        data = get_data(file_name)
+        data = tools.get_data(file_name)
         self.data = data
         if self.data:
             self.time_start = self.data['t'][0]
@@ -81,10 +81,12 @@ class Domain:
                 self._ode,
                 [t, self.time_stop],
                 initial_values,
-                t_eval = self.time_eval,
+                #t_eval = self.time_eval,
                 #max_step = 0.1,
                 method = 'BDF',
-                events = self.events
+                events = self.events,
+                atol=1e-6,
+                rtol=1e-4,
                 )
 
             for i,k in enumerate(self.solution):
@@ -104,9 +106,9 @@ class Domain:
                 break          
            
         t1 = time()
-
+        print(f'run time: {t1-t0:.3f}s')
         if plot:
-            print(f'run time: {t1-t0:.3f}s')
+            
             self.plot(all = True)
         
         return sol
@@ -164,7 +166,7 @@ class Domain:
                     self.solution['t'], 
                     [self.initial_values[variable](t) for t in self.solution['t']],
                     label = 'inlet '+variable,
-                    drawstyle = 'steps-post'
+                    #drawstyle = 'steps-post'
                 )
             try:
                 ax.plot(
@@ -175,8 +177,11 @@ class Domain:
                 )
             except KeyError:
                 pass
+        ax.set_xlim(self.time_start,self.time_stop)
         ax.legend()
         p.show()
+        #todo: return axis object
+        return ax
 
 class Chemistry(Domain):
     def __init__(self):
