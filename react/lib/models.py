@@ -5,7 +5,7 @@ import matplotlib.pyplot as p
 import numpy as np
 from scipy.integrate import solve_ivp, OdeSolution
 from scipy.optimize import minimize
-from . import tools
+from react.lib import tools
 
 class Domain:
     '''
@@ -81,12 +81,12 @@ class Domain:
                 self._ode,
                 [t, self.time_stop],
                 initial_values,
-                #t_eval = self.time_eval,
-                #max_step = 0.1,
+                t_eval = self.time_eval,
+                # max_step = 0.1,
                 method = 'BDF',
                 events = self.events,
-                atol=1e-6,
-                rtol=1e-4,
+                # atol=1e-9,
+                # rtol=1e-7,
                 )
 
             for i,k in enumerate(self.solution):
@@ -156,13 +156,13 @@ class Domain:
         ax.set_ylabel('concentration')
         ax.set_xlabel('time')
         for variable in to_plot:
-            ax.plot(
+            l = ax.plot(
                 self.solution['t'], 
                 self.solution[variable],
                 label = variable,
                 )
             if callable(self.initial_values[variable]):
-                ax.plot(
+                l = ax.plot(
                     self.solution['t'], 
                     [self.initial_values[variable](t) for t in self.solution['t']],
                     label = 'inlet '+variable,
@@ -174,6 +174,7 @@ class Domain:
                     self.data[variable],
                     'o',
                     label = 'exp.' + variable,
+                    color = l[-1].get_color()
                 )
             except KeyError:
                 pass

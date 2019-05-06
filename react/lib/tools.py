@@ -174,7 +174,7 @@ def gaussian(t1=20, y_tot=1, sig=1):
         return y*np.exp(-0.5*((t-t1)/sig)**2)
     return _gaussian
 
-def exponential(t1=10, y_tot=1, c=1):
+def exponential(t1=20, y_tot=1, c=1):
     '''
     Exponential growth until time t1
     
