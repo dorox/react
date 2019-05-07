@@ -172,7 +172,10 @@ def gaussian(t1=20, y_tot=1, sig=1):
     y = y_tot /((2*np.pi)**0.5*sig)
     def _gaussian(t):
         return y*np.exp(-0.5*((t-t1)/sig)**2)
-    return _gaussian
+    def _event1(t,y):
+        return t-(t1-3*sig)
+    _event1.terminal = True
+    return _gaussian, [_event1]
 
 def exponential(t1=20, y_tot=1, c=1):
     '''
@@ -200,9 +203,12 @@ def exponential(t1=20, y_tot=1, c=1):
             return y*np.exp(c*t)
         else:
             return 0
-    def _event1(t,y): return t-t1
+    def _event1(t,y): 
+        return t-(t1-10/c)
     _event1.terminal = True
-    return _exp
+    def _event2(t,y): return t-t1
+    _event2.terminal = True
+    return _exp, [_event1,_event2]
     
 def get_data(file_name):
     '''

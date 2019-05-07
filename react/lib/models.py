@@ -19,7 +19,7 @@ class Domain:
         self.time_start = 0 #Start of simulation
         self.time_stop = 100   #End of simulation
         self.time_eval = None   #Time steps for simulation
-        self.events = None
+        self.events = []
 
     def _ode(self, t, y):
         '''
@@ -29,7 +29,7 @@ class Domain:
         print('Empty ode function, y has to be in the order of self.variables')
         pass
 
-    def import_data(self, file_name):
+    def import_data(self, file_name, plot=True):
         '''
         Iporting .csv file with the format:
 
@@ -49,11 +49,12 @@ class Domain:
                 if k!='t':
                     self.initial_values[k] = data[k][0]
 
-        for k in data:
-            if k != 't':
-                p.plot(data['t'], data[k], 'o', label = k)
-        p.legend()
-        p.show()
+        if plot:
+            for k in data:
+                if k != 't':
+                    p.plot(data['t'], data[k], 'o', label = k)
+            p.legend()
+            p.show()
 
     def run(self, plot = True):
         ''' 
@@ -64,15 +65,17 @@ class Domain:
         
         self.solution = OrderedDict.fromkeys(self.variables, [])
         self.solution['t'] = []
+        self.dense = None
         t = self.time_start
-        iv = self.initial_values
+        events = self.events.copy()
 
-        initial_values = np.zeros(len(self.initial_values))
+        iv = self.initial_values
+        sol_initial_values = np.zeros(len(self.initial_values))
         for i, k in enumerate(iv):
             if callable(iv[k]):
-                initial_values[i] = iv[k](t)
+                sol_initial_values[i] = iv[k](t)
             else:
-                initial_values[i] = iv[k]
+                sol_initial_values[i] = iv[k]
     
         sol = None
         t0 = time()
@@ -80,11 +83,12 @@ class Domain:
             sol = solve_ivp(
                 self._ode,
                 [t, self.time_stop],
-                initial_values,
+                sol_initial_values,
                 t_eval = self.time_eval,
                 # max_step = 0.1,
                 method = 'BDF',
-                events = self.events,
+                events = events,
+                dense_output=True,
                 # atol=1e-9,
                 # rtol=1e-7,
                 )
@@ -92,14 +96,21 @@ class Domain:
             for i,k in enumerate(self.solution):
                 if not k=='t':
                     self.solution[k] = np.append(self.solution[k], sol.y[i])
-                    initial_values[i] = sol.y[i][-1]
+                    sol_initial_values[i] = sol.y[i][-1]
             self.solution['t'] = np.append(self.solution['t'], sol.t)
-            
+            if not self.dense:
+                self.dense = sol.sol
+            else:
+                self.dense.interpolants.extend(sol.sol.interpolants)
+                self.dense.t_max = sol.sol.t_max
+                self.dense.n_segments+=sol.sol.n_segments
+                self.dense.ts = np.append(self.dense.ts, sol.sol.ts)
+                self.dense.ts_sorted = np.append(self.dense.ts_sorted, sol.sol.ts_sorted)
             #If aborted by an event: continue
             if sol.status == 1:
                 for i, e in enumerate(sol.t_events):
                     if e: 
-                        self.events.pop(i)
+                        events.pop(i)
                         t = e[0]
             #If aborted by t_stop: end
             elif sol.status == 0:
@@ -107,9 +118,7 @@ class Domain:
            
         t1 = time()
         print(f'run time: {t1-t0:.3f}s')
-        if plot:
-            
-            self.plot(all = True)
+        if plot: self.plot(all = True)
         
         return sol
 
@@ -123,7 +132,7 @@ class Domain:
                 obj += np.sum((self.solution[key] - self.data[key])**2)
         return obj
 
-    def fit(self):
+    def fit(self, plot=True):
         '''
         Fitting the model into imported data
         '''
@@ -137,7 +146,7 @@ class Domain:
             )
         print(res)
         #self.rate_constants = res
-        self.run()
+        self.run(plot)
         return res
     
     def plot(self, *args, all = False):
@@ -336,6 +345,8 @@ class CSTR(Domain):
 
     def __init__(self, q=1, V=1):
         super().__init__()
+        self.source=None
+        self.destination=None
         self.q = q
         self.V = V
         self._chemistry = OrderedDict()
@@ -344,13 +355,11 @@ class CSTR(Domain):
         #used to get inlet variables values
         iv = self.initial_values
         c_in = np.zeros(len(iv))
-        i=0
-        for k in iv:
+        for i, k in enumerate(iv):
             if callable(iv[k]):
                 c_in[i] = iv[k](t)
             else:
                 c_in[i] = iv[k]
-            i+=1
         return c_in
 
     def _ode(self, t, c):
@@ -368,6 +377,7 @@ class CSTR(Domain):
             else:
                 self.initial_values.update({k:v})
             self.variables.update({k:0})
+        self._iv = [v for v in self.initial_values.values()]
 
     def add(self, domain):
         '''
