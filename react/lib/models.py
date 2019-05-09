@@ -5,7 +5,7 @@ import matplotlib.pyplot as p
 import numpy as np
 from scipy.integrate import solve_ivp, OdeSolution
 from scipy.optimize import minimize
-from react.lib import tools
+from . import tools
 
 class Domain:
     '''
