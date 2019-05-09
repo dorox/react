@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="chem-react",
+    name="chemreact",
     version="0.0.1",
     author="Ilia Dorokhov",
     author_email="i.dorokhov14@ic.ac.uk",
