@@ -56,12 +56,36 @@ class Domain:
             p.legend()
             p.show()
 
+    def _sort_vars(self):
+        '''
+        Sort internal variables to simplify indexing during integration
+        '''
+        sorted_list = sorted(self.variables.keys())
+        if type(self) is Chemistry:
+            #sort stoichiometry
+            for i, k in enumerate(self.variables.keys()):
+                self.variables[k] = self.stoichiometry[:,i]
+            #sorted stoichiometry
+            self.stoichiometry = np.stack([self.variables[k] for k in sorted_list], 1)
+
+            #sort orders
+            for i, k in enumerate(self.variables.keys()):
+                self.variables[k] = self.orders[:,i]
+            #sorted orders
+            self.orders = np.stack([self.variables[k] for k in sorted_list], 1)
+
+        #sort initial values
+        self.initial_values = OrderedDict({k:self.initial_values[k] for k in sorted_list})
+
+        #sort species
+        self.variables = OrderedDict({k:0 for k in sorted_list})
+
     def run(self, plot = True):
         ''' 
         Running simulation of a modelling domain
         '''
-        #TODO: add variable time-stepping - increasing time step with time
-        #TODO: add sliders to get initial estimates for k values
+        #TODO: pre-initialise solver separately
+        #TODO: optimise overhead
         
         self.solution = OrderedDict.fromkeys(self.variables, [])
         self.solution['t'] = []
@@ -88,7 +112,7 @@ class Domain:
                 # max_step = 0.1,
                 method = 'BDF',
                 events = events,
-                dense_output=True,
+                dense_output=False,
                 # atol=1e-9,
                 # rtol=1e-7,
                 )
@@ -98,6 +122,8 @@ class Domain:
                     self.solution[k] = np.append(self.solution[k], sol.y[i])
                     sol_initial_values[i] = sol.y[i][-1]
             self.solution['t'] = np.append(self.solution['t'], sol.t)
+            
+            #Dense output for solution interpolation
             if not self.dense:
                 self.dense = sol.sol
             else:
@@ -106,6 +132,7 @@ class Domain:
                 self.dense.n_segments+=sol.sol.n_segments
                 self.dense.ts = np.append(self.dense.ts, sol.sol.ts)
                 self.dense.ts_sorted = np.append(self.dense.ts_sorted, sol.sol.ts_sorted)
+            
             #If aborted by an event: continue
             if sol.status == 1:
                 for i, e in enumerate(sol.t_events):
@@ -117,9 +144,10 @@ class Domain:
                 break          
            
         t1 = time()
-        print(f'run time: {t1-t0:.3f}s')
-        if plot: self.plot(all = True)
         
+        if plot: 
+            self.plot(all = True)
+            print(f'run time: {t1-t0:.3f}s')
         return sol
 
     def _obj_fun(self, parameters):
@@ -177,7 +205,7 @@ class Domain:
                     label = 'inlet '+variable,
                     #drawstyle = 'steps-post'
                 )
-            try:
+            if variable in self.data:
                 ax.plot(
                     self.data['t'],
                     self.data[variable],
@@ -185,8 +213,6 @@ class Domain:
                     label = 'exp.' + variable,
                     color = l[-1].get_color()
                 )
-            except KeyError:
-                pass
         ax.set_xlim(self.time_start,self.time_stop)
         ax.legend()
         p.show()
@@ -197,12 +223,8 @@ class Chemistry(Domain):
     def __init__(self):
         super().__init__()
         self.stoichiometry = np.array([], ndmin = 2)
-        self.rate_constants = np.array([])
+        self.rate_constants = []
         self.orders = np.array([], ndmin = 2)
-        self.species = OrderedDict()
-        self.c0 = OrderedDict()
-        self.variables = self.species #will there be non-species variables?
-        self.initial_values = self.c0 #temporary?
         self.parameters = self.rate_constants
 
     def _rate(self, c):
@@ -210,18 +232,14 @@ class Chemistry(Domain):
         Returns array of species generation rates
         '''
         r = np.zeros(len(self.rate_constants))
-        i=0
-        for reaction in self.orders:
+        for i,reaction in enumerate(self.orders):
             r[i]=self.rate_constants[i]
 
-            # This is slower than a loop:
-            #r[i]=np.prod(np.power(c,reaction))
+            # np.prod is slower than a loop:
+            # r[i]=np.prod(np.power(c,reaction))
 
-            j=0
-            for coeff in reaction:
+            for j,coeff in enumerate(reaction):
                 r[i]*=c[j]**(coeff)
-                j+=1
-            i+=1
         return r
 
     def _ode(self, t, c):
@@ -236,9 +254,9 @@ class Chemistry(Domain):
         '''
         Set the initial concentrations of species at t=0s
         '''
-        #TODO error when kwargs contains non-existing species
         for species, conc in kwargs.items():
-            self.c0.update({species:conc})
+            if species in self.variables:
+                self.initial_values.update({species:conc})
 
     def reaction(self, string, k=1, k1=1, k2=1):
         '''
@@ -263,8 +281,8 @@ class Chemistry(Domain):
             chem.reaction('A+B=>C', k = 1e-6)
             chem.reaction('A+B<=>C', k1 = 3.5e-12, k2 = 4.5e-11)
         '''
-        for i in self.species:
-            self.species[i] = 0
+        for i in self.variables:
+            self.variables[i] = 0
 
         string = string.replace(' ', '')
 
@@ -281,16 +299,25 @@ class Chemistry(Domain):
         else:
             print('reactions not found')
         
-        for s in self.species:
-            try:
-                self.c0.update({s:self.c0[s]})
-            except KeyError:
-                self.c0.update({s:0})
+        for s in self.variables:
+            if s in self.initial_values:
+                self.initial_values.update({s:self.initial_values[s]})
+            else:
+                self.initial_values.update({s:0})
+        #sorting variables for easier integration into other domains
+        self._sort_vars()
+
+        return
 
     def _new_reaction(self, reagents, products, k):
+        '''
+        This could be optimised, maybe?
+        dim0: all species of a single reaction
+        dim1: all reactions of a single species
+        '''
         #TODO: rewrite from self.species to new dictionaries
 
-        self.rate_constants = np.append(self.rate_constants, k)
+        self.rate_constants.append(k)
 
         def get_coeff(s): 
             match = re.search(r'\b[\d\.]+', s)
@@ -302,16 +329,18 @@ class Chemistry(Domain):
         def get_species(s): return re.findall(r'[A-z]\w*', s)[0]
 
         #---Creating stoichiometry matrix
-        
-        self.species.update({get_species(i):-get_coeff(i) for i in re.findall(r'[\.\w]+', reagents)})
+        #-Using species dict as temporary storage for coefficients
+        self.variables.update({get_species(i):-get_coeff(i) for i in re.findall(r'[\.\w]+', reagents)})
 
         for i in re.findall(r'[\.\w]+', products):
-            try:
-                self.species[get_species(i)] += get_coeff(i)
-            except KeyError:
-                self.species.update({get_species(i):get_coeff(i)})
+            species = get_species(i)
+            coeff = get_coeff(i)
+            if species in self.variables:
+                self.variables[species] += coeff
+            else:
+                self.variables.update({species:coeff})
 
-        new_s = [self.species.get(i) for i in self.species]
+        new_s = [self.variables.get(i) for i in self.variables]
         s = self.stoichiometry
 
         if s.size<=1:
@@ -324,12 +353,13 @@ class Chemistry(Domain):
     
         #---Creating species rate order matrix
 
-        for i in self.species:
-            self.species[i] = 0
+        for i in self.variables:
+            self.variables[i] = 0
         
-        self.species.update({get_species(i):abs(get_coeff(i)) for i in re.findall(r'[\.\w]+', reagents)})
-        new_o = [self.species.get(i) for i in self.species]
+        self.variables.update({get_species(i):abs(get_coeff(i)) for i in re.findall(r'[\.\w]+', reagents)})
+        new_o = [self.variables.get(i) for i in self.variables]
         o = self.orders
+
         if o.size<=1:
             self.orders = np.array(new_o, ndmin = 2)
         else:
@@ -337,19 +367,22 @@ class Chemistry(Domain):
             c[:o.shape[0], :o.shape[1]] = o
             c = np.vstack((c, new_o))
             self.orders = c
-        
-        for i in self.species:
-            self.species[i] = 0
+
+        #Cleaning species: temp storage for coeffitients
+        for i in self.variables:
+            self.variables[i] = 0
+
+        return
 
 class CSTR(Domain):
-
     def __init__(self, q=1, V=1):
         super().__init__()
-        self.source=None
-        self.destination=None
+        self.source = None
+        self.destination = None
         self.q = q
         self.V = V
-        self._chemistry = OrderedDict()
+        self._chemistry = None
+        self._chemistry_ind = False
     
     def _get_c_in(self, t):
         #used to get inlet variables values
@@ -364,9 +397,8 @@ class CSTR(Domain):
 
     def _ode(self, t, c):
         dmdt = self.q/self.V*(self._get_c_in(t)-c)
-        if len(self._chemistry)>0:
-            for k in self._chemistry:
-                dmdt += self._chemistry[k]._ode(t,c)
+        if self._chemistry:
+            dmdt[self._chemistry_ind] += self._chemistry._ode(t,c[self._chemistry_ind])
         return dmdt
     
     def inlet(self, **kwargs):
@@ -374,21 +406,129 @@ class CSTR(Domain):
             if type(v)==tuple:
                 self.initial_values.update({k:v[0]})
                 self.events = v[1]
+            elif callable(v):
+                self.initial_values.update({k:v})
             else:
                 self.initial_values.update({k:v})
             self.variables.update({k:0})
         self._iv = [v for v in self.initial_values.values()]
+        self._update_vars()
+        self._sort_vars()
+    
+    @property
+    def chemistry(self):
+        return self._chemistry
 
-    def add(self, domain):
+    @chemistry.setter
+    def chemistry(self, domain):
         '''
-        Adds new domain into the reactor
+        Adds chemistry domain into the reactor
         '''
-        if type(domain) == Chemistry:
-            self._chemistry.update({len(self._chemistry):domain})
-            for k in domain.species:
-                try:
-                    self.variables[k]
-                except KeyError:
-                    self.initial_values.update({k:0})
-                    self.variables.update({k:0})
-        pass
+        if type(domain) != Chemistry:
+            return
+        
+        self._chemistry = domain
+        self._update_vars()
+        self._sort_vars()
+        return
+
+    def _update_vars(self):
+        if self._chemistry:
+            ch_vars = set(self._chemistry.variables)
+            self_vars = set(self.variables)
+            diff = ch_vars-self_vars
+            new_vars = dict().fromkeys(diff, 0)
+            self.variables.update(new_vars)
+            self.initial_values.update(new_vars)
+        
+            #Indexes of vars present in chemistry domain:
+            self._chemistry_ind = [(v in self._chemistry.variables) for v in self.variables]
+        return
+    
+class PFR(Domain):
+    def __init__(self, q=1, V=1):
+        super().__init__()
+        self.source = None
+        self.destination = None
+        self.q = q
+        self.V = V
+        self.time_stop = V/q
+        self._chemistry = None
+        self._chemistry_ind = False
+    
+    def _get_c_in(self, t):
+        #used to get inlet variables values
+        iv = self.initial_values
+        c_in = np.zeros(len(iv))
+        for i, k in enumerate(iv):
+            if callable(iv[k]):
+                c_in[i] = iv[k](t)
+            else:
+                c_in[i] = iv[k]
+        return c_in
+
+    def _get_diff_c_in(self, t):
+        #used to get inlet variables values
+        iv = self.initial_values
+        c_in = np.zeros(len(iv))
+        for i, k in enumerate(iv):
+            if callable(iv[k]):
+                c_in[i] = iv[k](t)
+            else:
+                c_in[i] = 0
+        return c_in
+
+    def _ode(self, t, c):
+        if t>self.time_stop:
+            t = t-self.time_stop
+        else:
+            t=0
+        dmdt = self._get_c_in_diff(t)
+        if self._chemistry:
+            dmdt[self._chemistry_ind] += self._chemistry._ode(t,c[self._chemistry_ind])
+        return dmdt
+    
+    def inlet(self, **kwargs):
+        for k, v in kwargs.items():
+            if type(v)==tuple:
+                self.initial_values.update({k:v[0]})
+                self.events = v[1]
+            elif callable(v):
+                self.initial_values.update({k:v})
+            else:
+                self.initial_values.update({k:v})
+            self.variables.update({k:0})
+        self._iv = [v for v in self.initial_values.values()]
+        self._update_vars()
+        self._sort_vars()
+    
+    @property
+    def chemistry(self):
+        return self._chemistry
+
+    @chemistry.setter
+    def chemistry(self, domain):
+        '''
+        Adds chemistry domain into the reactor
+        '''
+        if type(domain) != Chemistry:
+            return
+        
+        self._chemistry = domain
+        self._update_vars()
+        self._sort_vars()
+        return
+
+    def _update_vars(self):
+        if self._chemistry:
+            ch_vars = set(self._chemistry.variables)
+            self_vars = set(self.variables)
+            diff = ch_vars-self_vars
+            new_vars = dict().fromkeys(diff, 0)
+            self.variables.update(new_vars)
+            self.initial_values.update(new_vars)
+        
+            #Indexes of vars present in chemistry domain:
+            self._chemistry_ind = [(v in self._chemistry.variables) for v in self.variables]
+        return
+    

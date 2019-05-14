@@ -1,10 +1,10 @@
 import unittest
 import numpy as np
-from context import react
+from context import chemreact as react
 
 rtol = 1e-2
 
-plot = False
+plot = True
 
 def area(r):
     return np.trapz(r.solution['A'], r.solution['t'])
@@ -21,29 +21,30 @@ class Test_Flowsheets(unittest.TestCase):
         r2 = react.models.CSTR()
         r2.inlet(A=0)
         _=r2.run(False)
+        r3 = react.models.CSTR()
+        r4 = react.models.CSTR()
 
         f = react.Flowsheet()
-        f.connect(r1,r2)
-        f.run()
+        f.connect(r1,r2,r3,r4)
+        f.run(plot)
 
     def test_chemistry(self):
-        c = react.models.Chemistry()
-        c.reaction('A=>B')
-        c.reaction('B=>C')
+        r1 = react.models.CSTR()
+        r2 = react.models.CSTR()
+        r3 = react.models.CSTR()
+        r4 = react.models.CSTR()
 
-        V=10
-        r1= react.models.CSTR(V=V)
-        r1.inlet(A=react.tools.step())
-        r1.inlet(B=0)
+        r1.inlet(A = react.tools.exponential())
 
-        r2 = react.models.CSTR(V=V)
-        r2.inlet(A=0)
-        r2.add(c)
+        c1 = react.models.Chemistry()
+        c1.reaction('A=>0.5B')
+        r2.chemistry = c1
 
-        r3 = react.models.CSTR(V=V)
-        r3.inlet(A=0)
+        c2 = react.models.Chemistry()
+        c2.reaction('B=>0.5C')
+        r3.chemistry = c2
 
         f = react.Flowsheet()
-        f.connect(r1,r2)
-        f.connect(r2,r3)
-        f.run()
+        f.connect(r1,r2, r3, r4)
+        f.run(plot)
+    

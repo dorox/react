@@ -1,7 +1,10 @@
 import numpy as np
 import unittest
+import timeit
 
-from context import react
+from context import chemreact
+
+react = chemreact
 plot = False
 
 models = react.models
@@ -17,41 +20,62 @@ def tol(x,val):
     return abs(x-val)/x
 
 class Test_Chem(unittest.TestCase):
+    
+    def test_timing(self):
+        def run():
+            #Reversible reaction test
+            c = models.Chemistry()
+            c.reaction('A=>B')
+            c.reaction('A+X<=>C+D')
+            c.reaction('B+Y<=>C+E')
+            c.reaction('E+D<=>F')
+            c.initial_concentrations(A=1, X=1, B=1, Y=1)
+            c.time_stop = 50
+            sol = c.run(plot)
+            self.assertTrue(sol.success)
+            return sol.success
+        n = 100
+        t = timeit.timeit(run, number=n)
+        t_n = t/n
+        print(f'\nTime per simulation: {t_n:0.3f}s\n')
+        self.assertLessEqual(t_n, 0.4)
 
     def test_brussaelator(self):
         #Brusselator test
-        chem = models.Chemistry()
+        c = models.Chemistry()
 
-        chem.reaction('A=>X')
-        chem.reaction('2X+Y=>3X')
-        chem.reaction('B+X=>Y+D')
-        chem.reaction('X=>E')
+        c.reaction('A=>X')
+        c.reaction('2X+Y=>3X')
+        c.reaction('B+X=>Y+D')
+        c.reaction('X=>E')
 
-        chem.initial_concentrations(A=1, B=3, X=1, Y= 1)
+        c.initial_concentrations(A=1, B=3, X=1, Y= 1)
 
-        chem.stoichiometry[:,3] =np.zeros(4)
-        chem.stoichiometry[:,0] =np.zeros(4)
+        # r(A) = 0
+        c.stoichiometry[:,0] =np.zeros(4)
+        # r(B) = 0
+        c.stoichiometry[:,1] =np.zeros(4)
 
-        chem.time_stop = 100
-        sol = chem.run(plot)
+        c.time_stop = 100
+        sol = c.run(plot)
         self.assertTrue(sol.success)
-        self.assertLessEqual(tolearance('A',chem,100),rtol)
-        self.assertLessEqual(tolearance('B',chem,300),rtol)
-        self.assertLessEqual(tolearance('X',chem,97.603),rtol)
-        self.assertLessEqual(tolearance('Y',chem,318.307),rtol)
-        self.assertLessEqual(tolearance('E',chem,4784.089),rtol)
-        self.assertLessEqual(tolearance('D',chem,14352.268),rtol)
+        self.assertLessEqual(tolearance('A',c,100),rtol)
+        self.assertLessEqual(tolearance('B',c,300),rtol)
+        self.assertLessEqual(tolearance('X',c,97.603),rtol)
+        self.assertLessEqual(tolearance('Y',c,318.307),rtol)
+        self.assertLessEqual(tolearance('E',c,4784.089),rtol)
+        self.assertLessEqual(tolearance('D',c,14352.268),rtol)
 
     def test_reaction(self):
         #Reversible reaction test
-        chem2 = models.Chemistry()
-        chem2.reaction('A=>B')
-        chem2.reaction('A+X<=>C+D')
-        chem2.reaction('B+Y<=>C+E')
-        chem2.reaction('E+D<=>F')
-        chem2.initial_concentrations(A=1, X=1, B=1, Y=1)
-        chem2.time_stop = 50
-        sol = chem2.run(plot)
+        c = models.Chemistry()
+        c.reaction('A=>B')
+        c.reaction('A+X<=>C+D')
+        c.reaction('B+Y<=>C+E')
+        c.reaction('E+D<=>F')
+        c.initial_concentrations(A=1, X=1, B=1, Y=1)
+        c.time_stop = 50
+        sol = c.run(plot)
         self.assertTrue(sol.success)
 
     def test_import(self):
@@ -63,7 +87,7 @@ class Test_Chem(unittest.TestCase):
         self.assertEqual(c.data['t'][0], c.time_start)
         self.assertEqual(c.data['t'][-1],c.time_stop)
         self.assertTrue(len(c.data)==4)
-        self.assertTrue(len(c.data['t']==35))
+        self.assertTrue(len(c.data['t'])==35)
 
     def test_fit(self):
         c = models.Chemistry()

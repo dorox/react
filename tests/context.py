@@ -5,4 +5,4 @@ sys.path.insert(
         os.path.join(os.path.dirname(__file__), '..')
         )
     )
-import react
+import chemreact

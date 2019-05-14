@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from context import react
+from context import chemreact as react
 
 rtol = 1e-2
 
@@ -61,18 +61,21 @@ class Test_Inputs(unittest.TestCase):
 
 class Test_Reactions(unittest.TestCase):
 
-    def test_irreversible(self):
+    def test_simple(self):
         c = models.Chemistry()
         c.reaction('A=>B')
         c.initial_concentrations(A=1)
         sol = c.run(plot=plot)
         self.assertTrue(sol.success)
         
-        r.add(c)
+        r.inlet(C=1)
+        r.chemistry = c
         r.run(plot=plot)
         r.inlet(A = tools.step())
+        r.inlet(D = 1)
         sol = r.run(plot)
         self.assertTrue(sol.success)
+
 
 if __name__=='__main__':
     unittest.main()
