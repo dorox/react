@@ -65,7 +65,7 @@ class Test_Reactions(unittest.TestCase):
         c = models.Chemistry()
         c.reaction('A=>B')
         c.initial_concentrations(A=1)
-        sol = c.run(plot=plot)
+        sol = c.run(plot=plot, output=True)
         self.assertTrue(sol.success)
         
         r.inlet(C=1)
@@ -73,7 +73,7 @@ class Test_Reactions(unittest.TestCase):
         r.run(plot=plot)
         r.inlet(A = tools.step())
         r.inlet(D = 1)
-        sol = r.run(plot)
+        sol = r.run(plot = plot, output=True)
         self.assertTrue(sol.success)
 
 

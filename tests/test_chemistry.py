@@ -31,7 +31,7 @@ class Test_Chem(unittest.TestCase):
             c.reaction('E+D<=>F')
             c.initial_concentrations(A=1, X=1, B=1, Y=1)
             c.time_stop = 50
-            sol = c.run(plot)
+            sol = c.run(plot=plot, output=True)
             self.assertTrue(sol.success)
             return sol.success
         n = 100
@@ -57,7 +57,7 @@ class Test_Chem(unittest.TestCase):
         c.stoichiometry[:,1] =np.zeros(4)
 
         c.time_stop = 100
-        sol = c.run(plot)
+        sol = c.run(plot=plot, output=True)
         self.assertTrue(sol.success)
         self.assertLessEqual(tolearance('A',c,100),rtol)
         self.assertLessEqual(tolearance('B',c,300),rtol)
@@ -75,7 +75,7 @@ class Test_Chem(unittest.TestCase):
         c.reaction('E+D<=>F')
         c.initial_concentrations(A=1, X=1, B=1, Y=1)
         c.time_stop = 50
-        sol = c.run(plot)
+        sol = c.run(plot=plot, output=True)
         self.assertTrue(sol.success)
 
     def test_import(self):

@@ -80,7 +80,7 @@ class Domain:
         #sort species
         self.variables = OrderedDict({k:0 for k in sorted_list})
 
-    def run(self, plot = True):
+    def run(self, plot=True, output=False):
         ''' 
         Running simulation of a modelling domain
         '''
@@ -150,7 +150,9 @@ class Domain:
         if plot: 
             self.plot(all = True)
             print(f'run time: {t1-t0:.3f}s')
-        return sol
+
+        if output:
+            return sol
 
     def _obj_fun(self, parameters):
         #TODO: sensitivity matrix output
@@ -477,7 +479,7 @@ class PFR(Domain):
         if self._chemistry:
             self._chemistry.initial_concentrations(**{k:c_in[self._chemistry_ind][i] for i, k in enumerate(self._chemistry.variables.keys())})
             self._chemistry.time_stop = self.delay
-            sol = self._chemistry.run(False)
+            sol = self._chemistry.run(plot = False, output = True)
             dmdt[self._chemistry_ind] += self.q/0.0001*([v[-1] for v in sol.y]-c_in[self._chemistry_ind])
         return dmdt
     
