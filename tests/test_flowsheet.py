@@ -33,9 +33,7 @@ class Test_Flowsheets(unittest.TestCase):
         r2 = react.models.CSTR()
         r3 = react.models.CSTR()
         r4 = react.models.CSTR()
-
-        r1.inlet(A = react.tools.exponential())
-
+        
         c1 = react.models.Chemistry()
         c1.reaction('A=>0.5B')
         r2.chemistry = c1
@@ -46,5 +44,7 @@ class Test_Flowsheets(unittest.TestCase):
 
         f = react.Flowsheet()
         f.connect(r1,r2, r3, r4)
+        r1.inlet(A = react.tools.step())
+
         f.run(plot)
     

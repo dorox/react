@@ -142,7 +142,9 @@ class Domain:
             #If aborted by t_stop: end
             elif sol.status == 0:
                 break          
-           
+        
+        if type(self) is PFR:
+            self.solution['t'][1:]+=self.delay
         t1 = time()
         
         if plot: 
@@ -199,9 +201,10 @@ class Domain:
                 label = variable,
                 )
             if callable(self.initial_values[variable]):
+                t=np.linspace(self.time_start,self.time_stop,1000)
                 l = ax.plot(
-                    self.solution['t'], 
-                    [self.initial_values[variable](t) for t in self.solution['t']],
+                    t, 
+                    [self.initial_values[variable](t) for t in t],
                     label = 'inlet '+variable,
                     #drawstyle = 'steps-post'
                 )
@@ -213,7 +216,7 @@ class Domain:
                     label = 'exp.' + variable,
                     color = l[-1].get_color()
                 )
-        ax.set_xlim(self.time_start,self.time_stop)
+        #ax.set_xlim(self.time_start,self.time_stop)
         ax.legend()
         p.show()
         #todo: return axis object
@@ -452,7 +455,8 @@ class PFR(Domain):
         self.destination = None
         self.q = q
         self.V = V
-        self.time_stop = V/q
+        self.delay = V/q
+        self._store = []
         self._chemistry = None
         self._chemistry_ind = False
     
@@ -467,25 +471,14 @@ class PFR(Domain):
                 c_in[i] = iv[k]
         return c_in
 
-    def _get_diff_c_in(self, t):
-        #used to get inlet variables values
-        iv = self.initial_values
-        c_in = np.zeros(len(iv))
-        for i, k in enumerate(iv):
-            if callable(iv[k]):
-                c_in[i] = iv[k](t)
-            else:
-                c_in[i] = 0
-        return c_in
-
     def _ode(self, t, c):
-        if t>self.time_stop:
-            t = t-self.time_stop
-        else:
-            t=0
-        dmdt = self._get_c_in_diff(t)
+        c_in = self._get_c_in(t)
+        dmdt = self.q/0.0001*(c_in-c)
         if self._chemistry:
-            dmdt[self._chemistry_ind] += self._chemistry._ode(t,c[self._chemistry_ind])
+            self._chemistry.initial_concentrations(**{k:c_in[self._chemistry_ind][i] for i, k in enumerate(self._chemistry.variables.keys())})
+            self._chemistry.time_stop = self.delay
+            sol = self._chemistry.run(False)
+            dmdt[self._chemistry_ind] += self.q/0.0001*([v[-1] for v in sol.y]-c_in[self._chemistry_ind])
         return dmdt
     
     def inlet(self, **kwargs):
