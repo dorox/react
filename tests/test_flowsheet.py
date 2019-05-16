@@ -48,3 +48,17 @@ class Test_Flowsheets(unittest.TestCase):
 
         f.run(plot)
     
+    def test_inlet(self):
+        
+        r1 = react.models.CSTR(V=5)
+        r2 = react.models.PFR(V=50)
+        r3 = react.models.CSTR(V=10)
+
+        f = react.Flowsheet()
+        f.connect(r1,r2, r3)
+        f.time_stop = 200
+        
+        r1.inlet(A = react.tools.rect())
+        #in 3rd reactor - overstepping
+        r3.solver_params(max_step=0.1)
+        f.run(plot)

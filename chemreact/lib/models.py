@@ -19,6 +19,7 @@ class Domain:
         self.time_start = 0 #Start of simulation
         self.time_stop = 100   #End of simulation
         self.time_eval = None   #Time steps for simulation
+        self._solver_params = None
         self.events = []
 
     def _ode(self, t, y):
@@ -80,6 +81,10 @@ class Domain:
         #sort species
         self.variables = OrderedDict({k:0 for k in sorted_list})
 
+    def solver_params(self, **kwargs):
+        self._solver_params = kwargs
+        return
+    
     def run(self, plot=True, output=False):
         ''' 
         Running simulation of a modelling domain
@@ -104,17 +109,24 @@ class Domain:
         sol = None
         t0 = time()
         while True:
+            params = {'t_eval' : self.time_eval,
+                'method' : 'BDF',
+                'events' : events,
+                'dense_output': False}
+            if self._solver_params:
+                params.update(self._solver_params)
             sol = solve_ivp(
                 self._ode,
                 [t, self.time_stop],
                 sol_initial_values,
-                t_eval = self.time_eval,
-                # max_step = 0.1,
-                method = 'BDF',
-                events = events,
-                dense_output=False,
-                # atol=1e-9,
-                # rtol=1e-7,
+                **params
+                # t_eval = self.time_eval,
+                # # max_step = 0.1,
+                # method = 'BDF',
+                # events = events,
+                # dense_output=False,
+                # # atol=1e-9,
+                # # rtol=1e-7,
                 )
 
             for i,k in enumerate(self.solution):
