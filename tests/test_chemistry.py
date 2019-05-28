@@ -21,6 +21,15 @@ def tol(x,val):
 
 class Test_Chem(unittest.TestCase):
     
+    def test_source(self):
+        c = models.Chemistry()
+        c.reaction('X=>2X')
+        sol = c.run(plot=plot, output=True)
+        self.assertTrue(sol.success)
+        c.reaction('X+Y=>Y')
+        sol = c.run(plot=plot, output=True)
+        self.assertTrue(sol.success)
+
     def test_timing(self):
         def run():
             #Reversible reaction test

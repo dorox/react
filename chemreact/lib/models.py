@@ -360,7 +360,7 @@ class Chemistry(Domain):
         new_s = [self.variables.get(i) for i in self.variables]
         s = self.stoichiometry
 
-        if s.size<=1:
+        if s.size<1:
             self.stoichiometry = np.array(new_s, ndmin = 2)
         else:
             c = np.zeros((s.shape[0], len(new_s)))
@@ -377,7 +377,7 @@ class Chemistry(Domain):
         new_o = [self.variables.get(i) for i in self.variables]
         o = self.orders
 
-        if o.size<=1:
+        if o.size<1:
             self.orders = np.array(new_o, ndmin = 2)
         else:
             c = np.zeros((o.shape[0], len(new_o)))
