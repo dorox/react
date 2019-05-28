@@ -31,18 +31,18 @@ class Test_Chem(unittest.TestCase):
         self.assertTrue(sol.success)
 
     def test_timing(self):
+        #Reversible reaction test
+        c = models.Chemistry()
+        c.reaction('A=>B')
+        c.reaction('A+X<=>C+D')
+        c.reaction('B+Y<=>C+E')
+        c.reaction('E+D<=>F')
+        c.initial_concentrations(A=1, X=1, B=1, Y=1)
+        c.time_stop = 50
         def run():
-            #Reversible reaction test
-            c = models.Chemistry()
-            c.reaction('A=>B')
-            c.reaction('A+X<=>C+D')
-            c.reaction('B+Y<=>C+E')
-            c.reaction('E+D<=>F')
-            c.initial_concentrations(A=1, X=1, B=1, Y=1)
-            c.time_stop = 50
-            sol = c.run(plot=plot, output=True)
-            self.assertTrue(sol.success)
-            return sol.success
+            # c.solver_params(jac=None)
+            c.run(plot=False)
+            return
         n = 100
         t = timeit.timeit(run, number=n)
         t_n = t/n
@@ -66,6 +66,7 @@ class Test_Chem(unittest.TestCase):
         c.stoichiometry[:,1] =np.zeros(4)
 
         c.time_stop = 100
+        # c.solver_params(jac=None)
         sol = c.run(plot=plot, output=True)
         self.assertTrue(sol.success)
         self.assertLessEqual(tolearance('A',c,100),rtol)

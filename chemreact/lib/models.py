@@ -4,6 +4,7 @@ from time import time
 import matplotlib.pyplot as p
 import numpy as np
 from scipy.integrate import solve_ivp, OdeSolution
+from scipy.sparse import bsr_matrix
 from scipy.optimize import minimize
 from . import tools
 
@@ -105,14 +106,15 @@ class Domain:
                 sol_initial_values[i] = iv[k](t)
             else:
                 sol_initial_values[i] = iv[k]
-    
+
         sol = None
         t0 = time()
         while True:
             params = {'t_eval' : self.time_eval,
                 'method' : 'BDF',
                 'events' : events,
-                'dense_output': False}
+                'dense_output': False,
+                }
             if self._solver_params:
                 params.update(self._solver_params)
             sol = solve_ivp(
@@ -120,13 +122,6 @@ class Domain:
                 [t, self.time_stop],
                 sol_initial_values,
                 **params
-                # t_eval = self.time_eval,
-                # # max_step = 0.1,
-                # method = 'BDF',
-                # events = events,
-                # dense_output=False,
-                # # atol=1e-9,
-                # # rtol=1e-7,
                 )
 
             for i,k in enumerate(self.solution):
@@ -267,6 +262,13 @@ class Chemistry(Domain):
         dcdt = np.dot(self._rate(c), self.stoichiometry)
         return dcdt
 
+    # Jacobian method: curenntly doesn't give more performance.
+    # def _jac(self, t, c):
+    #     Jo = self.orders.copy()
+    #     Jo[Jo!=0]-=1
+    #     J = np.dot(self.stoichiometry.transpose(), self.orders+Jo*c)
+    #     return J
+    
     def initial_concentrations(self, **kwargs):
         '''
         Set the initial concentrations of species at t=0s
@@ -323,7 +325,6 @@ class Chemistry(Domain):
                 self.initial_values.update({s:0})
         #sorting variables for easier integration into other domains
         self._sort_vars()
-
         return
 
     def _new_reaction(self, reagents, products, k):
@@ -400,6 +401,7 @@ class CSTR(Domain):
         self.V = V
         self._chemistry = None
         self._chemistry_ind = False
+        self._jac = None
     
     def _get_c_in(self, t):
         #used to get inlet variables values
@@ -473,6 +475,7 @@ class PFR(Domain):
         self._store = []
         self._chemistry = None
         self._chemistry_ind = False
+        self._jac = None
     
     def _get_c_in(self, t):
         #used to get inlet variables values
