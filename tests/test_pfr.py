@@ -6,7 +6,7 @@ rtol = 1e-2
 
 models = react.models
 tools = react.tools
-plot = False
+plot = True
 V=10
 def area(r):
     return np.trapz(r.solution['A'], r.solution['t'])

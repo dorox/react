@@ -469,14 +469,18 @@ class PFR(Domain):
         super().__init__()
         self.source = None
         self.destination = None
-        self.q = q
-        self.V = V
-        self.delay = V/q
-        self._store = []
-        self._chemistry = None
-        self._chemistry_ind = False
-        self._jac = None
-    
+        self.q = q #volumetric flowrate, [l/s]
+        self.V = V #total volume, [l]
+        self.delay = V/q #residence time, not needed, [s]
+        self._length = 1 #reactor length, [m]
+        self._N = 100 #number of mesh points
+        self._x_grid = np.linspace(0,self._length,self._N) # grid points
+        self._dx = self.V/100 #subvolume element volume
+        self._store = [] #what is this for?
+        self._chemistry = None # chemistry domain (if added)
+        self._chemistry_ind = False # chemistry components indexes into self.variables
+        self._jac = None #Jacobian(not used so far)
+
     def _get_c_in(self, t):
         #used to get inlet variables values
         iv = self.initial_values
@@ -490,12 +494,16 @@ class PFR(Domain):
 
     def _ode(self, t, c):
         c_in = self._get_c_in(t)
-        dmdt = self.q/0.0001*(c_in-c)
+        dx = self._dx
         if self._chemistry:
             self._chemistry.initial_concentrations(**{k:c_in[self._chemistry_ind][i] for i, k in enumerate(self._chemistry.variables.keys())})
             self._chemistry.time_stop = self.delay
             sol = self._chemistry.run(plot = False, output = True)
             dmdt[self._chemistry_ind] += self.q/0.0001*([v[-1] for v in sol.y]-c_in[self._chemistry_ind])
+        
+        dmdt = np.zeros_like(c)
+        dmdt = -self.q*(-c_in+c[:,:,0])/self._dx
+        
         return dmdt
     
     def inlet(self, **kwargs):
