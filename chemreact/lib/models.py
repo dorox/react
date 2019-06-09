@@ -1,12 +1,8 @@
 import re  # Regular expression module for reading reaction strings
 from collections import OrderedDict
-from time import time
 import matplotlib.pyplot as p
 import numpy as np
-from scipy.integrate import solve_ivp, OdeSolution
-from scipy.sparse import bsr_matrix
 from scipy.optimize import minimize
-from . import tools
 from .domains import Domain0d, Domain1d
 
 class Chemistry(Domain0d):
