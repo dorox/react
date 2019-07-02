@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="chemreact",
-    version="0.0.1",
+    version="0.0.2",
     author="Ilia Dorokhov",
     author_email="i.dorokhov14@ic.ac.uk",
     description="Reaction simulation package",
