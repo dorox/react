@@ -58,6 +58,11 @@ class Test_Inputs(unittest.TestCase):
         r2.inlet(A=tools.gaussian(t1=20, sig=1.8))
         r2.run(plot)
         self.assertLessEqual(tolearance(r2, 1), rtol)
+     
+    def test_logistic(self):
+        r.inlet(A=tools.logistic())
+        r.run(True)
+        self.assertLessEqual(tolearance(r, 80), rtol)
 
 class Test_Reactions(unittest.TestCase):
 

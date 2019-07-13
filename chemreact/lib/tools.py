@@ -210,6 +210,34 @@ def exponential(t1=20, y_tot=1, c=1):
     _event2.terminal = True
     return _exp, [_event1,_event2]
     
+def logistic(t1=10, y0=0, y1=1, k=1):
+    '''
+    Smooth step change
+    
+    Parameters
+    ----------
+    t1 : number, optional
+        Middle of the curve midpoint
+    y0 : number, optional
+        Initial value, by default 0
+    y1 : number, optional
+        End value, by default 1
+    k : number, optional
+        Rate of growth, by default 1
+    
+    Returns
+    -------
+    y(t):
+        Function returning values at arbitrary time step
+    [...]:
+        Events array
+    '''
+    def _logistic(t):
+        return y0+y1/(1+np.exp(-k*(t-t1)))
+    def _event1(t,y):
+        return  t1-5/k
+    return _logistic, [_event1]
+
 def get_data(file_name):
     '''
     Reads data from file_name
@@ -217,7 +245,7 @@ def get_data(file_name):
     Parameters
     ----------
     file_name : string
-        Filename relative to working directory
+        Path to a .csv file relative to working directory
     
     Returns
     -------
@@ -232,7 +260,6 @@ def get_data(file_name):
         reader = csv.DictReader(csvfile)
         reader.fieldnames[0] = 't'
         data = OrderedDict().fromkeys(reader.fieldnames)
-        i = 0
         for key in data:
             data[key] = np.zeros(flen)
         i = 0
