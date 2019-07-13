@@ -61,7 +61,7 @@ class Test_Inputs(unittest.TestCase):
      
     def test_logistic(self):
         r.inlet(A=tools.logistic())
-        r.run(True)
+        r.run(plot)
         self.assertLessEqual(tolearance(r, 80), rtol)
 
 class Test_Reactions(unittest.TestCase):
