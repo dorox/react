@@ -8,9 +8,7 @@ from .domains import Domain0d, Domain1d
 class Chemistry(Domain0d):
     def __init__(self):
         super().__init__()
-        self.stoichiometry = np.array([], ndmin = 2)
         self.rate_constants = []
-        self.orders = np.array([], ndmin = 2)
         self.parameters = self.rate_constants
 
     def _rate(self, c):
@@ -273,7 +271,7 @@ class PFR(Domain1d):
             self._chemistry.initial_concentrations(**{k:c_in[self._chemistry_ind][i] for i, k in enumerate(self._chemistry.variables.keys())})
             self._chemistry.time_stop = self.delay
             sol = self._chemistry.run(plot = False, output = True)
-            dmdt[self._chemistry_ind] += self.q/0.0001*([v[-1] for v in sol.y]-c_in[self._chemistry_ind])
+            # dmdt[self._chemistry_ind] += self.q/0.0001*([v[-1] for v in sol.y]-c_in[self._chemistry_ind])
         
         dmdt = np.zeros_like(c)
         dmdt = -self.q*(-c_in+c[:,:,0])/self._dx
@@ -292,7 +290,7 @@ class PFR(Domain1d):
             self.variables.update({k:0})
         self._iv = [v for v in self.initial_values.values()]
         self._update_vars()
-        self._sort_vars()
+        # self._sort_vars()
     
     @property
     def chemistry(self):
@@ -308,9 +306,9 @@ class PFR(Domain1d):
         
         self._chemistry = domain
         self._update_vars()
-        self._sort_vars()
+        # self._sort_vars()
         return
-
+    
     def _update_vars(self):
         if self._chemistry:
             ch_vars = set(self._chemistry.variables)

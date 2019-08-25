@@ -5,7 +5,10 @@ import numpy as np
 from scipy.integrate import solve_ivp, OdeSolution
 from scipy.sparse import bsr_matrix
 from scipy.optimize import minimize
-from . import tools
+from . import tools, models
+
+Chemistry = models.Chemistry
+PFR = models.PFR
 
 class Domain0d:
     '''
@@ -21,6 +24,8 @@ class Domain0d:
         self.time_eval = None   #Time steps for simulation
         self._solver_params = None
         self.events = []
+        self.stoichiometry = np.array([], ndmin = 2)
+        self.orders = np.array([], ndmin = 2)
 
     def _ode(self, t, y):
         '''
@@ -56,7 +61,7 @@ class Domain0d:
                     p.plot(data['t'], data[k], 'o', label = k)
             p.legend()
             p.show()
-
+    
     def _sort_vars(self):
         '''
         Sort internal variables to simplify indexing during integration
@@ -150,7 +155,8 @@ class Domain0d:
                 break          
         
         if type(self) is PFR:
-            self.solution['t'][1:]+=self.delay
+            print('fix for PFR')
+            # self.solution['t'][1:]+=self.delay
         t1 = time()
         
         if plot: 
@@ -249,6 +255,14 @@ class Domain1d:
         self._solver_params = kwargs
         return
     
+    def _ode(self, t, y):
+        '''
+        Empty ode function, 
+        y has to be in the order of self.variables
+        '''
+        print('Empty ode function, y has to be in the order of self.variables')
+        pass
+
     def run(self, plot=True, output=False):
         ''' 
         Running simulation of a modelling domain
@@ -314,7 +328,8 @@ class Domain1d:
                 break          
         
         if type(self) is PFR:
-            self.solution['t'][1:]+=self.delay
+            print('fix PFR')
+            # self.solution['t'][1:]+=self.delay
         t1 = time()
         
         if plot: 
@@ -324,3 +339,45 @@ class Domain1d:
         if output:
             return sol
 
+    def plot(self, *args, all = False):
+        '''
+        Plotting selected variables as a function of time
+        '''
+        #TODO check if solution exists before plotting
+        #      add checkboxes for components to plot
+        if all:
+            to_plot = self.variables
+        else:
+            to_plot = args
+
+        fig = p.figure()
+        ax = fig.add_subplot(111)
+        ax.set_ylabel('concentration')
+        ax.set_xlabel('time')
+        for variable in to_plot:
+            l = ax.plot(
+                self.solution['t'], 
+                self.solution[variable],
+                label = variable,
+                )
+            if callable(self.initial_values[variable]):
+                t=np.linspace(self.time_start,self.time_stop,1000)
+                l = ax.plot(
+                    t, 
+                    [self.initial_values[variable](t) for t in t],
+                    label = 'inlet '+variable,
+                    #drawstyle = 'steps-post'
+                )
+            if variable in self.data:
+                ax.plot(
+                    self.data['t'],
+                    self.data[variable],
+                    'o',
+                    label = 'exp.' + variable,
+                    color = l[-1].get_color()
+                )
+        #ax.set_xlim(self.time_start,self.time_stop)
+        ax.legend()
+        p.show()
+        #todo: return axis object
+        return ax

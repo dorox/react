@@ -2,7 +2,8 @@ import numpy as np
 import unittest
 import timeit
 
-from context import chemreact
+# from context import chemreact
+import chemreact
 
 react = chemreact
 plot = False
