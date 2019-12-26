@@ -63,7 +63,14 @@ class Test_Inputs(unittest.TestCase):
         r.inlet(A=tools.logistic())
         r.run(plot)
         self.assertLessEqual(tolearance(r, 80), rtol)
-
+    
+    def test_flow(self):
+        r.inlet(A=1)
+        r.inlet(B=1)
+        r.set_flow(B=0)
+        sol = r.run(plot)
+        self.assertEqual(r.solution['B'][-1], 1.0)
+        
 class Test_Reactions(unittest.TestCase):
 
     def test_simple(self):
@@ -71,7 +78,7 @@ class Test_Reactions(unittest.TestCase):
         c.reaction('A=>B')
         c.initial_concentrations(A=1)
         sol = c.run(plot=plot, output=True)
-        self.assertTrue(sol.success)
+        self.assertTrue(sol.success) 
         
         r.inlet(C=1)
         r.chemistry = c
@@ -80,6 +87,16 @@ class Test_Reactions(unittest.TestCase):
         r.inlet(D = 1)
         sol = r.run(plot = plot, output=True)
         self.assertTrue(sol.success)
+    
+    def test_stationary_reagent(self):
+        c = models.Chemistry()
+        c.reaction('A+B=>C')
+        r.chemistry = c
+        r.inlet(A=1)
+        r.initial_values['B'] = 2 # or r.inlet(B=1)
+        r.set_flow(B=0)
+        r.run()
+        self.assertTrue(False)
 
 
 if __name__=='__main__':

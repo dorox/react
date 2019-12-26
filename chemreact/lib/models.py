@@ -210,11 +210,13 @@ class CSTR(Domain_0D):
         self._sort_vars()
     
     def set_flow(self, **kwargs):
-        q = self.q*np.ones(self.q)
         iv = self.initial_values
-        for i, k in enumerate(kwargs):
-            if 
-
+        q = self.q*np.ones(len(iv))
+        for i, k in enumerate(iv):
+            if k in kwargs:
+                # iv[k] = kwargs[k]
+                q[i] = kwargs[k]
+        self.q = q
 
     @property
     def chemistry(self):
@@ -349,8 +351,8 @@ class PFR1D(Domain_1D):
     
     def _ode(self, t, c):
         dydt = np.zeros_like(y)
-        dydt[0] = - u*(-c_in(t)+y[0])/dx# + D*(-2.0*c_in + 2.0*y[1]) / dx**2
-        dydt[1:] -= u*np.diff(y)/dx
-    return dydt
+        # dydt[0] = - u*(-c_in(t)+y[0])/dx# + D*(-2.0*c_in + 2.0*y[1]) / dx**2
+        # dydt[1:] -= u*np.diff(y)/dx
+        return dydt
 
     #solutions['fwd'] = solve_ivp(lambda t,y: PFR_fwd(t,y,u,D,c_in,dx), (0,t[-1]), y0)#, t_eval=t, method='BDF')#, rtol=1e-1, atol=1e-2)
