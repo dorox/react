@@ -1,64 +1,66 @@
 import unittest
 import numpy as np
-from context import chemreact as react
+from chemreact import models, Flowsheet, tools
 
 rtol = 1e-2
+plot = False
 
-plot = True
 
 def area(r):
-    return np.trapz(r.solution['A'], r.solution['t'])
+    return np.trapz(r.solution["A"], r.solution["t"])
+
+
 def tolearance(r, val):
-    a= area(r)
-    return abs((a-val)/a)
+    a = area(r)
+    return abs((a - val) / a)
+
 
 class Test_Flowsheets(unittest.TestCase):
-
     def test_simple(self):
-        r1= react.models.CSTR()
-        r1.inlet(A=react.tools.rect())
-        _=r1.run(False)
-        r2 = react.models.CSTR()
+        r1 = models.CSTR()
+        r1.inlet(A=tools.rect())
+        _ = r1.run(False)
+        r2 = models.CSTR()
         r2.inlet(A=0)
-        _=r2.run(False)
-        r3 = react.models.CSTR()
-        r4 = react.models.CSTR()
+        _ = r2.run(False)
+        r3 = models.CSTR()
+        r4 = models.CSTR()
 
-        f = react.Flowsheet()
-        f.connect(r1,r2,r3,r4)
+        f = Flowsheet()
+        f.connect(r1, r2, r3, r4)
         f.run(plot)
 
     def test_chemistry(self):
-        r1 = react.models.CSTR()
-        r2 = react.models.CSTR()
-        r3 = react.models.CSTR()
-        r4 = react.models.CSTR()
-        
-        c1 = react.models.Chemistry()
-        c1.reaction('A=>0.5B')
+        r1 = models.CSTR()
+        r2 = models.CSTR()
+        r3 = models.CSTR()
+        r4 = models.CSTR()
+
+        c1 = models.Chemistry()
+        c1.reaction("A=>0.5B")
         r2.chemistry = c1
 
-        c2 = react.models.Chemistry()
-        c2.reaction('B=>0.5C')
+        c2 = models.Chemistry()
+        c2.reaction("B=>0.5C")
         r3.chemistry = c2
 
-        f = react.Flowsheet()
-        f.connect(r1,r2, r3, r4)
-        r1.inlet(A = react.tools.step())
+        f = Flowsheet()
+        f.connect(r1, r2, r3, r4)
+        r1.inlet(A=tools.step())
 
         f.run(plot)
-    
-    def test_inlet(self):
-        
-        r1 = react.models.CSTR(V=5)
-        r2 = react.models.PFR(V=50)
-        r3 = react.models.CSTR(V=10)
 
-        f = react.Flowsheet()
-        f.connect(r1,r2, r3)
+    def test_inlet(self):
+
+        r1 = models.CSTR(V=5)
+        r2 = models.PFR(V=50)
+        r3 = models.CSTR(V=10)
+
+        f = Flowsheet()
+        f.connect(r1, r2, r3)
         f.time_stop = 200
-        
-        r1.inlet(A = react.tools.rect())
-        #in 3rd reactor - overstepping
+
+        r1.inlet(A=tools.rect())
+        # in 3rd r - overstepping
         r3.solver_params(max_step=0.1)
         f.run(plot)

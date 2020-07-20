@@ -1,32 +1,36 @@
 import unittest
 import numpy as np
-from context import chemreact as react
+from chemreact import models, tools
 
 rtol = 1e-2
-
-models = react.models
-tools = react.tools
 plot = False
-V=10
+V = 10
+
+
 def area(r):
-    return np.trapz(r.solution['A'], r.solution['t'])
+    return np.trapz(r.solution["A"], r.solution["t"])
+
+
 def tolearance(r, val):
-    a= area(r)
-    return abs((a-val)/a)
+    a = area(r)
+    return abs((a - val) / a)
+
 
 class Test_inputs(unittest.TestCase):
     def test_rect(self):
         r = models.PFR(V=V)
         r.inlet(A=tools.rect())
-        _=r.run()
+        _ = r.run(plot)
+
 
 class Test_chemistry(unittest.TestCase):
     def test_simple(self):
         r = models.PFR(V=V)
-        r.inlet(A = tools.gaussian())
+        r.inlet(A=tools.gaussian())
 
         c = models.Chemistry()
-        c.reaction('A=>B', k=0.01)
+        c.reaction("A=>B", k=0.01)
         r.chemistry = c
-        _=r.run()
-        1+1
+        _ = r.run(plot)
+        1 + 1
+
