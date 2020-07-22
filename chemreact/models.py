@@ -1,5 +1,6 @@
 import re  # Regular expression module for reading reaction strings
 from collections import OrderedDict
+from re import escape
 from time import time
 import matplotlib.pyplot as p
 import numpy as np
@@ -7,6 +8,7 @@ from scipy.integrate import solve_ivp, OdeSolution
 from scipy.sparse import bsr_matrix
 from scipy.optimize import minimize
 from . import tools
+import warnings
 
 
 class Domain:
@@ -244,9 +246,13 @@ class Chemistry(Domain):
 
     def _rate(self, c):
         """
-        Returns array of species generation rates
-        """
+        Returns array of species generation rates.
 
+        Warning: if rate fractional orders are implemented, np.power can't raise negative number to fractional exponent,
+            see here: https://stackoverflow.com/questions/34898917/how-to-raise-arrays-with-negative-values-to-fractional-power-in-python
+        """
+        # ---Warning--- flooring c to 0
+        # c[c < 0] = 0
         r = c ** self.orders
         r = np.prod(r, 1) * self.rate_constants
 
@@ -347,9 +353,14 @@ class Chemistry(Domain):
 
         # ---Creating stoichiometry matrix
         # -Using species dict as temporary storage for coefficients
-        self.variables.update(
-            {get_species(i): -get_coeff(i) for i in re.findall(r"[\.\w]+", reagents)}
-        )
+
+        for i in re.findall(r"[\.\w]+", reagents):
+            species = get_species(i)
+            coeff = get_coeff(i)
+            if species in self.variables:
+                self.variables[species] += -coeff
+            else:
+                self.variables[species] = -coeff
 
         for i in re.findall(r"[\.\w]+", products):
             species = get_species(i)
@@ -375,12 +386,9 @@ class Chemistry(Domain):
         for i in self.variables:
             self.variables[i] = 0
 
-        self.variables.update(
-            {
-                get_species(i): abs(get_coeff(i))
-                for i in re.findall(r"[\.\w]+", reagents)
-            }
-        )
+        for i in re.findall(r"[\.\w]+", reagents):
+            self.variables[get_species(i)] += abs(get_coeff(i))
+
         new_o = [self.variables.get(i) for i in self.variables]
         o = self.orders
 
@@ -391,6 +399,16 @@ class Chemistry(Domain):
             c[: o.shape[0], : o.shape[1]] = o
             c = np.vstack((c, new_o))
             self.orders = c
+
+        if np.any(self.orders % 1 > 0):
+            warnings.warn_explicit(
+                message="Fractional rate orders are not supported and will be rounded to nearest integer",
+                filename="models.py",
+                lineno=406,
+                category=Warning,
+            )
+
+        self.orders = self.orders.astype(int)
 
         # Cleaning species: temp storage for coeffitients
         for i in self.variables:

@@ -54,7 +54,34 @@ class Test_Chem(unittest.TestCase):
         print(f"\nTime per simulation: {t_n:0.3f}s\n")
         self.assertLessEqual(t_n, 0.4)
 
-    def test_brussaelator(self):
+    def test_second_order(self):
+        c = models.Chemistry()
+        c.reaction("2A=>AA")
+        c.reaction("B+B=>BB")
+        c.initial_concentrations(A=1, B=1)
+        sol = c.run(plot=plot, output=True)
+        self.assertTrue(np.all(sol.y[0] == sol.y[2]))
+
+    def test_fractional_order(self):
+        c = models.Chemistry()
+        c.reaction("0.3A=>B")
+        c.initial_concentrations(A=1)
+        sol = c.run(plot, output=True)
+        self.assertWarns(Warning)
+        self.assertTrue(sol.success)
+
+    def test_predatorprey(self):
+        c = models.Chemistry()
+        c.reaction("X=>2X", k=1.1)
+        c.reaction("X+Y=>Y", k=0.4)
+        c.reaction("X+Y=>2Y+X", k=0.1)
+        c.reaction("Y=>y", k=0.4)
+
+        c.initial_concentrations(X=10, Y=10)
+        sol = c.run(plot, output=True)
+        self.assertTrue(sol.success)
+
+    def test_brusselator(self):
         # Brusselator test
         c = models.Chemistry()
 
