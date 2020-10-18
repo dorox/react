@@ -1,7 +1,11 @@
+from chemreact.models import Chemistry
+from chemreact import chemistry
 import numpy as np
 import unittest
 import timeit
 import chemreact
+
+import matplotlib.pyplot as plt
 
 plot = False
 
@@ -9,19 +13,27 @@ models = chemreact.models
 tools = chemreact.tools
 rtol = 1e-2
 
-
 def area(s, r):
     return np.trapz(r.solution[s], r.solution["t"])
-
 
 def tolearance(s, r, val):
     a = area(s, r)
     return abs((a - val) / a)
 
-
 def tol(x, val):
     return abs(x - val) / x
 
+Chemistry2 = chemistry.Chemistry
+class Test_Chem2(unittest.TestCase):
+    def test_parsing_simple(self):
+        c2 = Chemistry2()
+        c2.reaction('A+B=>C', 1)
+        c2.A.initial_value = 1
+        c2.B.initial_value = 1
+        sol = c2.run()
+        plt.plot(sol.t, sol.y[0])
+        plt.show()
+        self.assertTrue(True)
 
 class Test_Chem(unittest.TestCase):
     def test_source(self):
@@ -30,6 +42,10 @@ class Test_Chem(unittest.TestCase):
         sol = c.run(plot=plot, output=True)
         self.assertTrue(sol.success)
         c.reaction("X+Y=>Y")
+        sol = c.run(plot=plot, output=True)
+        self.assertTrue(sol.success)
+        c = models.Chemistry()
+        c.reaction("A+B=>C")
         sol = c.run(plot=plot, output=True)
         self.assertTrue(sol.success)
 
