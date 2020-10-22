@@ -1,10 +1,12 @@
+from chemreact.chemistry import Reaction
 from chemreact.models import Chemistry
 from chemreact import chemistry
+from chemreact.models2 import Domain, Variable, Constant
 import numpy as np
 import unittest
 import timeit
 import chemreact
-
+import copy
 import matplotlib.pyplot as plt
 
 plot = False
@@ -13,27 +15,53 @@ models = chemreact.models
 tools = chemreact.tools
 rtol = 1e-2
 
+
 def area(s, r):
     return np.trapz(r.solution[s], r.solution["t"])
+
 
 def tolearance(s, r, val):
     a = area(s, r)
     return abs((a - val) / a)
 
+
 def tol(x, val):
     return abs(x - val) / x
 
+
 Chemistry2 = chemistry.Chemistry
+
+
 class Test_Chem2(unittest.TestCase):
+    def test_reaction(self):
+        r = Reaction("A+B=>C", 1)
+        r.A.initial_value = 1
+        r.B.initial_value = 1
+        sol = r.run()
+        plt.plot(sol.t, sol.y[0])
+        plt.show()
+        self.assertTrue(True)
+
     def test_parsing_simple(self):
         c2 = Chemistry2()
-        c2.reaction('A+B=>C', 1)
+        c2.reaction("A+B=>C", 1)
         c2.A.initial_value = 1
         c2.B.initial_value = 1
         sol = c2.run()
         plt.plot(sol.t, sol.y[0])
         plt.show()
         self.assertTrue(True)
+
+    def test_second_order(self):
+        c = Chemistry2()
+        c.reaction("2A=>AA")
+        c.reaction("B+B=>BB")
+        c.reaction("C=>CC")
+        c.initial_concentrations(A=1, B=1, C=1)
+        sol = c.run(plot=plot, output=True)
+        self.assertTrue(np.all(sol.y[0] != sol.y[4]))
+        self.assertTrue(np.all(sol.y[0] == sol.y[2]))
+
 
 class Test_Chem(unittest.TestCase):
     def test_source(self):
