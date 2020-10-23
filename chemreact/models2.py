@@ -1,5 +1,4 @@
-from typing import Any, Callable, List, Tuple, Union
-import numpy as np
+from typing import Callable, List, Union
 from scipy.integrate import solve_ivp
 
 
@@ -72,11 +71,10 @@ class Domain:
         subdomains: list = [],
         index: int = None,
     ) -> None:
-        s = self.__class__
-        s._vars: List[Variable] = []
-        s._const: List[Constant] = []
-        s._subdomains: list = []
-        s._idx: int = index
+        self._vars: List[Variable] = []
+        self._const: List[Constant] = []
+        self._subdomains: list = []
+        self._idx: int = index
         for v in variables:
             self.add_variable(v.name, v)
         for c in constants:
@@ -84,33 +82,30 @@ class Domain:
         for d in subdomains:
             self.add_subdomain(d.name, d)
 
-    @classmethod
-    def add_variable(cls, n: Union[str, Variable], v: Variable = None, **kwargs):
+    def add_variable(self, n: Union[str, Variable], v: Variable = None, **kwargs):
         if type(n) == str and v == None:
             v = Variable(name=n, **kwargs)
         elif type(n) == str and v == Variable:
             v.name = n
         elif isinstance(n, Variable):
             v = n
-        if n in cls.__dict__:
-            raise ValueError(f"{v} is already in {cls}")
-        cls._vars.append(v)
-        type.__setattr__(cls, v.name, v)
+        if n in self._vars:
+            raise ValueError(f"{v} is already in {self}")
+        self._vars.append(v)
+        type.__setattr__(self.__class__, v.name, v)
 
-    @classmethod
-    def add_constant(cls, name, value: float, c: Constant = None, **kwargs):
+    def add_constant(self, name, value: float, c: Constant = None, **kwargs):
         if c == None:
             c = Constant(name=name, value=value, **kwargs)
-        if c in cls.__dict__:
+        if c in self._const:
             raise ValueError
-        cls._const.append(c)
-        type.__setattr__(cls, c.name, c)
+        self._const.append(c)
+        type.__setattr__(self.__class__, c.name, c)
 
-    @classmethod
-    def add_subdomain(cls, name: str, d):
+    def add_subdomain(self, name: str, d):
         d.name = name
-        cls._subdomains.append(d)
-        type.__setattr__(cls, d.name, d)
+        self._subdomains.append(d)
+        type.__setattr__(self.__class__, d.name, d)
 
     def _ode(self, t: float, y: list) -> Callable:
         Domain._y = y
@@ -125,6 +120,7 @@ class Domain:
 
     @property
     def y0(self) -> list:
+        self._upd_idx()
         y0 = []
         for v in self._vars:
             y0.append(v.initial_value)

@@ -30,17 +30,7 @@ def tol(x, val):
 
 
 Chemistry2 = chemistry.Chemistry
-
-
 class Test_Chem2(unittest.TestCase):
-    def test_reaction(self):
-        r = Reaction("A+B=>C", 1)
-        r.A.initial_value = 1
-        r.B.initial_value = 1
-        sol = r.run()
-        plt.plot(sol.t, sol.y[0])
-        plt.show()
-        self.assertTrue(True)
 
     def test_parsing_simple(self):
         c2 = Chemistry2()

@@ -1,5 +1,6 @@
 import unittest
 from chemreact.models2 import Domain, Variable, Constant
+import matplotlib.pyplot as plt
 
 
 class Test_Domain(unittest.TestCase):
@@ -29,4 +30,17 @@ class Test_Domain(unittest.TestCase):
         for i, v in enumerate(vars):
             self.assertTrue(v._idx == i)
         self.assertTrue(doms[0].y0 == list(range(len(vars))))
+
+    def test_run(self):
+        d = Domain("d0")
+        d.add_variable("A", initial_value=1)
+        d.add_variable("B", initial_value=1)
+        d.add_variable("C", initial_value=0)
+
+        def ode(t, y):
+            dc = d.A * d.B
+            return [-dc, -dc, dc]
+
+        d.ode = ode
+        sol = d.run()
 
