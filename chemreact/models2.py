@@ -1,42 +1,41 @@
-from typing import Callable, List, Union
 from scipy.integrate import solve_ivp
 
 
 class Variable:
     def __init__(
         self,
-        name: str,
-        initial_value: float,
-        index: int = None,
-        var_type: str = None,
-        domain=None,
+        name,
+        initial_value=0,
     ):
         self.initial_value = initial_value
         self.name = name
-        self._idx = index
-        self.var_type = var_type
-        self._domain = domain
+        self._idx = 0
+        self._ode = lambda: 0
 
-    def __get__(self, obj, klass):
+    def __get__(self, obj, cls):
         if isinstance(obj, Domain) and obj._is_running:
             return obj._y[self._idx]
         else:
             return self
 
+    @property
+    def dt(self):
+        return self._ode()
+
     def __set__(self, obj, val):
         self.initial_value = float(val)
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         return f"Variable {self.name}, iv={self.initial_value}, idx={self._idx}"
 
 
 class Constant:
-    def __init__(self, name: str, value: float, index: int = None):
+    def __init__(self, name, value=0):
         self.name = name
         self.value = value
-        self._idx = index
+        self._idx = 0
 
-    def __get__(self, obj, klass):
+    def __get__(self, obj, cls):
         if isinstance(obj, Domain) and obj._is_running:
             return self.value
         else:
@@ -48,33 +47,32 @@ class Constant:
         else:
             NotImplemented
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         return f"Constant {self.name}={self}"
 
 
 class Domain:
-    name: str = ""
-    _is_running: bool = False
-    _y: list = []
+    _is_running = False
+    _y = []
 
-    def __new__(cls, name: str):
-        """creates new subclass for descriptor attachment"""
-        cls = type(f"{cls.__name__}_{name}", (cls,), {})
+    def __new__(cls, name):
+        """creates a new subclass for descriptor attachment"""
+        cls = type(f"{cls.__name__}_{name}", (Domain,), {})
         cls.name = name
         return super().__new__(cls)
 
     def __init__(
         self,
-        name: str,
-        variables: List[Variable] = [],
-        constants: List[Constant] = [],
-        subdomains: list = [],
-        index: int = None,
-    ) -> None:
-        self._vars: List[Variable] = []
-        self._const: List[Constant] = []
-        self._subdomains: list = []
-        self._idx: int = index
+        name,
+        variables=[],
+        constants=[],
+        subdomains=[],
+        index=None,
+    ):
+        self._vars = []
+        self._const = []
+        self._subdomains = []
+        self._idx = index
         for v in variables:
             self.add_variable(v.name, v)
         for c in constants:
@@ -82,36 +80,61 @@ class Domain:
         for d in subdomains:
             self.add_subdomain(d.name, d)
 
-    def add_variable(self, n: Union[str, Variable], v: Variable = None, **kwargs):
-        if type(n) == str and v == None:
-            v = Variable(name=n, **kwargs)
-        elif type(n) == str and v == Variable:
-            v.name = n
-        elif isinstance(n, Variable):
-            v = n
-        if n in self._vars:
+    def __setattr__(self, name, value):
+        if isinstance(value, Variable):
+            self._vars.append(value)
+        elif isinstance(value, Constant):
+            self._const.append(value)
+        else:
+            object.__setattr__(self, name, value)
+            return
+        type.__setattr__(self.__class__, name, value)
+
+    def add_variable(self, v):
+        if not isinstance(v, Variable):
+            raise TypeError(f"{v} is not a Variable")
+        elif v in self._vars:
             raise ValueError(f"{v} is already in {self}")
-        self._vars.append(v)
-        type.__setattr__(self.__class__, v.name, v)
+        elif v.name in self.__dir__():
+            raise ValueError(f"Name {v.name} is occupied")
+        self.__setattr__(v.name, v)
 
-    def add_constant(self, name, value: float, c: Constant = None, **kwargs):
-        if c == None:
-            c = Constant(name=name, value=value, **kwargs)
-        if c in self._const:
-            raise ValueError
-        self._const.append(c)
-        type.__setattr__(self.__class__, c.name, c)
+    def new_variables(self, s):
+        if type(s) == str:
+            self.add_variable(Variable(s))
+        else:
+            for v in s:
+                self.add_variable(Variable(v))
 
-    def add_subdomain(self, name: str, d):
-        d.name = name
+    def add_constant(self, c):
+        if not isinstance(c, Constant):
+            raise TypeError(f"{c} is not a Constant")
+        elif c in self._const:
+            raise ValueError(f"{c} is already in {self}")
+        elif c.name in self.__dir__():
+            raise ValueError(f"Name {c.name} is occupied")
+        self.__setattr__(c.name, c)
+
+    def new_constants(self, s):
+        if type(s) == str:
+            self.add_constant(Constant(s))
+        else:
+            for c in s:
+                self.add_constant(Constant(c))
+
+    def add_subdomain(self, d):
         self._subdomains.append(d)
         type.__setattr__(self.__class__, d.name, d)
 
-    def _ode(self, t: float, y: list) -> Callable:
+    def _ode(self, t, y):
         Domain._y = y
         return self.ode(t, y)
 
-    def _upd_idx(self, idx0: int = 0):
+    def ode(self, t, y):
+        # placeholder for user defined ODE function
+        pass
+
+    def _upd_idx(self, idx0=0):
         for idx, v in enumerate(self._vars):
             v._idx = idx + idx0
         for d in self._subdomains:
@@ -119,7 +142,7 @@ class Domain:
         return idx0
 
     @property
-    def y0(self) -> list:
+    def y0(self):
         self._upd_idx()
         y0 = []
         for v in self._vars:
@@ -137,4 +160,3 @@ class Domain:
 
     def __repr__(self):
         return f"Domain {self.name}"
-

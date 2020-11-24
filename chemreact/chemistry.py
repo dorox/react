@@ -1,14 +1,10 @@
 from chemreact.models2 import Constant, Domain, Variable
-from typing import List, Union
 import numpy as np
 import re
 
-array_like = Union[list, np.array, np.ndarray]
-number = Union[int, float]
-
 
 class Species(Variable):
-    def __init__(self, order, stoichiometry, is_reagent, **kwargs) -> None:
+    def __init__(self, order, stoichiometry, is_reagent, **kwargs):
         super().__init__(**kwargs)
         self.order = order
         self.stoichiometry = stoichiometry
@@ -22,7 +18,7 @@ class Reaction(Domain):
     IRREVERSIBLE = r"=>"
     EQUILIBRIUM = r"="
 
-    def __init__(self, s: str, k0: float = 1, idx: int = None, **kwargs) -> None:
+    def __init__(self, s, k0=1, idx=None, **kwargs):
         s = s.replace(" ", "")
         species = self._read(s)
 
@@ -33,24 +29,24 @@ class Reaction(Domain):
             index=idx,
             **kwargs,
         )
-        self._stoichiometry: dict = dict().setdefault(0)
-        self._orders: dict = dict().setdefault(0)
+        self._stoichiometry = dict().setdefault(0)
+        self._orders = dict().setdefault(0)
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         return f"Reaction {self._name}"
 
-    def _read(self, s: str, reac_type: str = IRREVERSIBLE) -> List[Species]:
-        def get_coeff(s: str) -> float:
+    def _read(self, s, reac_type=IRREVERSIBLE):
+        def get_coeff(s):
             match = re.search(r"\b[\d\.]+", s)
             if match:
                 return float(match.group())
             else:
                 return 1
 
-        def get_species(s: str) -> str:
+        def get_species(s):
             return re.findall(r"[A-z]\w*", s)[0]
 
-        def read_side(side: str, is_reagents: bool, group: dict) -> dict:
+        def read_side(side, is_reagents, group):
             for i in re.findall(r"[\.\w]+", side):
                 name = get_species(i)
                 coeff = get_coeff(i)
@@ -103,19 +99,19 @@ class Chemistry(Domain):
     solves ODE in a matrix form
     """
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._stoichiometry: np.ndarray = np.array([], ndmin=2)
-        self._rate_constants: np.ndarray = np.array([])
-        self._orders: np.ndarray = np.array([], ndmin=2, dtype=int)
-        self._reactions: List[Reaction] = []
+        self._stoichiometry = np.array([], ndmin=2)
+        self._rate_constants = np.array([])
+        self._orders = np.array([], ndmin=2, dtype=int)
+        self._reactions = []
 
-    def ode(self, t: float, y: array_like) -> array_like:
+    def ode(self, t, y):
         return np.dot(
             np.prod(y ** self._orders, 1) * self._rate_constants, self._stoichiometry
         )
 
-    def reaction(self, s: str, k: float = 1) -> Reaction:
+    def reaction(self, s, k=1):
         # Adds reaction
         r = Reaction(s, k)
         for sp in r.species:
