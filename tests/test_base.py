@@ -1,5 +1,6 @@
 import unittest
-from chemreact.models2 import Domain, Variable, Constant
+from chemreact.models2 import Domain, Variable, Constant, Solver
+import math
 import matplotlib.pyplot as plt
 
 
@@ -32,10 +33,15 @@ class Test_Domain(unittest.TestCase):
         doms[0].add_subdomain(doms[1])
         doms[1].add_subdomain(doms[2])
         doms[0].add_subdomain(doms[3])
-        doms[0]._upd_idx()
+        # doms[0]._upd_idx()
+        # for i, v in enumerate(vars):
+        #     self.assertTrue(v._idx == i)
+        # self.assertTrue(doms[0].y0 == list(range(len(vars))))
+        s = Solver(doms[0])
+        s.prepare()
+        self.assertTrue(s.y0 == list(range(len(vars))))
         for i, v in enumerate(vars):
             self.assertTrue(v._idx == i)
-        self.assertTrue(doms[0].y0 == list(range(len(vars))))
 
     def test_multiple_vars(self):
         d = Domain("d1")
@@ -47,22 +53,33 @@ class Test_Domain(unittest.TestCase):
         d.new_variables(("A", "B", "C"))
         d.A, d.B = (1, 1)
 
-        def ode(t, y):
+        def ode():
             dc = d.A * d.B
             return [-dc, -dc, dc]
 
         d.ode = ode
         sol = d.run()
 
+    def test_pendulum(self):
+        p = Domain("pendulum")
+        p.new_constants({"g": 9.8, "l": 1})
+        p.new_variables({"th": 0, "thdt": 1})
+
+        def ode():
+            return [p.thdt, -p.g / p.l * math.sin(p.th)]
+
+        p.ode = ode
+        sol = p.run()
+        # plt.plot(sol.t, sol.y[0])
+        # plt.plot(sol.t, sol.y[1])
+        # plt.show()
+
     def test_lorentz(self):
         d = Domain("d0")
-        d.new_variables(("x", "y", "z"))
-        d.x, d.y, d.z = 1, 1, 1
+        d.new_variables({"x": 1, "y": 1, "z": 1})
+        d.new_constants({"sig": 10, "rho": 28, "b": 8 / 3})
 
-        d.new_constants(("sig", "rho", "b"))
-        d.sig, d.rho, d.b = 10, 28, 8 / 3
-
-        def ode(t, y):
+        def ode():
             dx = d.sig * (d.y - d.x)
             dy = d.x * (d.rho - d.z) - d.y
             dz = d.x * d.y - d.b * d.z
@@ -70,16 +87,32 @@ class Test_Domain(unittest.TestCase):
 
         d.ode = ode
         sol = d.run()
-        plt.plot(sol.y[0], sol.y[1])
-        plt.plot(sol.y[1], sol.y[1])
-        plt.plot(sol.y[2], sol.y[1])
-        plt.show()
+        # plt.plot(sol.y[0], sol.y[1])
+        # plt.plot(sol.y[2], sol.y[1])
+        # plt.show()
 
     def test_explicit(self):
-        d = Domain("d")
-        d.a.dt = lambda: d.a - d.b
+        # d = Domain("d0")
+        # d.new_variables({"x": 1, "y": 1, "z": 1})
+        # d.new_constants({"sig": 10, "rho": 28, "b": 8 / 3})
 
-        def dbdt():
-            return d.a + d.b
+        # def ode():
+        #     dx = d.sig * (d.y - d.x)
+        #     dy = d.x * (d.rho - d.z) - d.y
+        #     dz = d.x * d.y - d.b * d.z
+        #     return [dx, dy, dz]
 
-        d.b.dt = dbdt
+        # d.ode = ode
+        # sol1 = d.run()
+
+        d2 = Domain("d0")
+        d2.new_variables({"x": 1, "y": 1, "z": 1})
+        d2.new_constants({"sig": 10, "rho": 28, "b": 8 / 3})
+
+        d2.x.dt = lambda: d2.sig * (d2.y - d2.x)
+        d2.y.dt = lambda: d2.x * (d2.rho - d2.z) - d2.y
+        d2.z.dt = lambda: d2.x * d2.y - d2.b * d2.z
+
+        sol2 = d2.run(callables=True)
+        # a = sol1.y == sol2.y
+        # self.assertTrue(a.all())

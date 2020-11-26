@@ -1,4 +1,5 @@
 from scipy.integrate import solve_ivp
+import scipy.integrate as integrate
 
 
 class Variable:
@@ -21,6 +22,11 @@ class Variable:
     @property
     def dt(self):
         return self._ode()
+
+    @dt.setter
+    def dt(self, dt):
+        if callable(dt):
+            self._ode = dt
 
     def __set__(self, obj, val):
         self.initial_value = float(val)
@@ -102,6 +108,9 @@ class Domain:
     def new_variables(self, s):
         if type(s) == str:
             self.add_variable(Variable(s))
+        elif type(s) == dict:
+            for v, iv in s.items():
+                self.add_variable(Variable(v, initial_value=iv))
         else:
             for v in s:
                 self.add_variable(Variable(v))
@@ -118,6 +127,9 @@ class Domain:
     def new_constants(self, s):
         if type(s) == str:
             self.add_constant(Constant(s))
+        elif type(s) == dict:
+            for c, v in s.items():
+                self.add_constant(Constant(c, value=v))
         else:
             for c in s:
                 self.add_constant(Constant(c))
@@ -128,35 +140,74 @@ class Domain:
 
     def _ode(self, t, y):
         Domain._y = y
-        return self.ode(t, y)
+        return self.ode()
 
-    def ode(self, t, y):
+    def ode(self, *args):
         # placeholder for user defined ODE function
         pass
 
-    def _upd_idx(self, idx0=0):
-        for idx, v in enumerate(self._vars):
-            v._idx = idx + idx0
-        for d in self._subdomains:
-            idx0 = d._upd_idx(idx + idx0 + 1)
-        return idx0
-
     @property
     def y0(self):
-        self._upd_idx()
         y0 = []
         for v in self._vars:
             y0.append(v.initial_value)
-        for d in self._subdomains:
-            y0.extend(d.y0)
         return y0
 
     def run(self, *args, **kwargs):
-        t_span = (0, 100)
-        Domain._is_running = True
-        sol = solve_ivp(self._ode, t_span, self.y0)
-        Domain._is_running = False
+        sol = Solver(self).run(*args, **kwargs)
         return sol
 
     def __repr__(self):
         return f"Domain {self.name}"
+
+
+class Solver:
+    def __init__(
+        self,
+        d,
+    ):
+        if not isinstance(d, Domain):
+            raise TypeError("d must be Domain")
+        self.d = d
+        self.y0 = []
+        self.t_span = (0, 100)
+        self.solver = None
+        self._vars = []
+
+    def prepare(self):
+        self._upd_idx(self.d)
+        self.y0 = self._get_y0(self.d)
+
+    def _get_y0(self, d):
+        y0 = []
+        y0.extend(d.y0)
+        for sd in d._subdomains:
+            y0.extend(self._get_y0(sd))
+        return y0
+
+    def _upd_idx(self, d, idx0=0):
+        for idx, v in enumerate(d._vars):
+            v._idx = idx + idx0
+            self._vars.append(v)
+        for sd in d._subdomains:
+            idx0 = self._upd_idx(sd, idx + idx0 + 1)
+        return idx0
+
+    def run(self, callables=False):
+        self.prepare()
+        if callables:
+
+            def fun(t, y):
+                Domain._y = y
+                return [v.dt for v in self._vars]
+
+        else:
+
+            def fun(t, y):
+                Domain._y = y
+                return self.d.ode()
+
+        Domain._is_running = True
+        sol = solve_ivp(fun, self.t_span, self.y0)
+        Domain._is_running = False
+        return sol
